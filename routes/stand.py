@@ -42,6 +42,34 @@ def dashboard(codigo):
                            ganancia_neta=ganancia_neta)
 
 
+@stand_bp.route('/<codigo>/editar', methods=['POST'])
+def editar_stand(codigo):
+    stand = get_stand_or_404(codigo)
+    nombre = request.form.get('nombre', '').strip()
+    if nombre:
+        stand.nombre = nombre
+    if 'foto' in request.files and request.files['foto'].filename:
+        try:
+            stand.foto = comprimir_imagen(request.files['foto'])
+        except Exception:
+            flash('Error al procesar la imagen.', 'danger')
+            return redirect(url_for('stand.dashboard', codigo=codigo))
+    if request.form.get('quitar_foto') == '1':
+        stand.foto = None
+    db.session.commit()
+    flash('Stand actualizado.', 'success')
+    return redirect(url_for('stand.dashboard', codigo=codigo))
+
+
+@stand_bp.route('/<codigo>/eliminar', methods=['POST'])
+def eliminar_stand(codigo):
+    stand = get_stand_or_404(codigo)
+    stand.activo = False
+    db.session.commit()
+    flash(f'Stand "{stand.nombre}" eliminado.', 'info')
+    return redirect(url_for('main.index'))
+
+
 @stand_bp.route('/<codigo>/productos', methods=['GET', 'POST'])
 def productos(codigo):
     stand = get_stand_or_404(codigo)
