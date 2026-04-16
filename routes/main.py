@@ -56,4 +56,10 @@ def crear_stand():
     db.session.add(stand)
     db.session.commit()
 
+    return redirect(url_for('main.stand_creado', codigo=codigo))
+
+
+@main_bp.route('/stand-creado/<codigo>')
+def stand_creado(codigo):
+    stand = Stand.query.filter_by(codigo_acceso=codigo).first_or_404()
     return render_template('stand_creado.html', stand=stand)
