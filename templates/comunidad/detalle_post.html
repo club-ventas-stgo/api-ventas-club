@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Post de {{ post.stand.nombre }}{% endblock %}
+
+{% block nav_items %}
+<a href="{{ url_for('comunidad.feed', codigo=stand.codigo_acceso) }}" class="nav-link text-light p-0">
+    <i class="bi bi-arrow-left"></i> Comunidad
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Post -->
+<div class="tile mb-3 p-0">
+    <div class="d-flex align-items-center p-3 pb-2">
+        <a href="{{ url_for('comunidad.perfil', codigo=stand.codigo_acceso, stand_id=post.stand.id) }}" class="d-flex align-items-center text-decoration-none text-dark">
+            {% if post.stand.foto %}
+            <img src="{{ post.stand.foto }}" alt="" style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%;">
+            {% else %}
+            <div class="d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2);">
+                <i class="bi bi-person-fill text-white"></i>
+            </div>
+            {% endif %}
+            <div class="ms-2">
+                <strong style="font-size: 0.95rem;">{{ post.stand.nombre }}</strong>
+                <br><small class="text-muted">{{ post.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+            </div>
+        </a>
+        {% if post.stand_id == stand.id %}
+        <form method="POST" action="{{ url_for('comunidad.eliminar_post', codigo=stand.codigo_acceso, post_id=post.id) }}" class="ms-auto" onsubmit="return confirm('Eliminar publicacion?')">
+            <button type="submit" class="btn btn-sm text-muted"><i class="bi bi-trash"></i></button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="px-3 pb-2">
+        <p style="white-space: pre-wrap; word-break: break-word;">{{ post.contenido }}</p>
+    </div>
+
+    {% if post.foto %}
+    <img src="{{ post.foto }}" alt="" class="w-100" style="object-fit: cover; max-height: 500px;">
+    {% endif %}
+
+    <div class="px-3 py-2 border-top d-flex align-items-center gap-3">
+        <button class="btn btn-sm p-0 like-btn {{ 'text-danger' if ya_like else 'text-muted' }}"
+                data-url="{{ url_for('comunidad.toggle_like', codigo=stand.codigo_acceso, post_id=post.id) }}">
+            <i class="bi {{ 'bi-heart-fill' if ya_like else 'bi-heart' }}"></i>
+            <span class="like-count">{{ post.likes.count() }}</span>
+        </button>
+        <span class="text-muted"><i class="bi bi-chat"></i> {{ comentarios|length }}</span>
+    </div>
+</div>
+
+<!-- Comment form -->
+<div class="tile mb-3 p-3">
+    <form method="POST" action="{{ url_for('comunidad.comentar', codigo=stand.codigo_acceso, post_id=post.id) }}">
+        <div class="input-group">
+            <input type="text" class="form-control" name="contenido" placeholder="Escribe un comentario..." maxlength="500" required style="border-radius: 12px 0 0 12px;">
+            <button type="submit" class="btn btn-primary" style="border-radius: 0 12px 12px 0;">
+                <i class="bi bi-send"></i>
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Comments -->
+{% for c in comentarios %}
+<div class="tile mb-2 p-3">
+    <div class="d-flex align-items-start gap-2">
+        <a href="{{ url_for('comunidad.perfil', codigo=stand.codigo_acceso, stand_id=c.stand.id) }}">
+            {% if c.stand.foto %}
+            <img src="{{ c.stand.foto }}" alt="" style="width: 30px; height: 30px; object-fit: cover; border-radius: 50%;">
+            {% else %}
+            <div class="d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2);">
+                <i class="bi bi-person-fill text-white" style="font-size: 0.7rem;"></i>
+            </div>
+            {% endif %}
+        </a>
+        <div class="flex-grow-1">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <strong style="font-size: 0.85rem;">{{ c.stand.nombre }}</strong>
+                    <small class="text-muted ms-1">{{ c.created_at.strftime('%d/%m %H:%M') }}</small>
+                </div>
+                {% if c.stand_id == stand.id %}
+                <form method="POST" action="{{ url_for('comunidad.eliminar_comentario', codigo=stand.codigo_acceso, comentario_id=c.id) }}" onsubmit="return confirm('Eliminar comentario?')">
+                    <button type="submit" class="btn btn-sm text-muted p-0" style="font-size: 0.75rem;"><i class="bi bi-x-lg"></i></button>
+                </form>
+                {% endif %}
+            </div>
+            <p class="mb-0 mt-1" style="font-size: 0.9rem; word-break: break-word;">{{ c.contenido }}</p>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% if comentarios|length == 0 %}
+<p class="text-center text-muted small mt-3">Sin comentarios aun. Se el primero!</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelector('.like-btn').addEventListener('click', async function(e) {
+    e.preventDefault();
+    const url = this.dataset.url;
+    const icon = this.querySelector('i');
+    const countSpan = this.querySelector('.like-count');
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+        const data = await res.json();
+        countSpan.textContent = data.count;
+        if (data.liked) {
+            icon.className = 'bi bi-heart-fill';
+            this.classList.add('text-danger');
+            this.classList.remove('text-muted');
+        } else {
+            icon.className = 'bi bi-heart';
+            this.classList.remove('text-danger');
+            this.classList.add('text-muted');
+        }
+    } catch {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        document.body.appendChild(form);
+        form.submit();
+    }
+});
+</script>
+{% endblock %}

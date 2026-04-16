@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Chat con {{ otro.nombre }}{% endblock %}
+
+{% block nav_items %}
+<a href="{{ url_for('comunidad.mensajes', codigo=stand.codigo_acceso) }}" class="nav-link text-light p-0">
+    <i class="bi bi-arrow-left"></i> Mensajes
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Chat header -->
+<div class="tile mb-3 p-2 d-flex align-items-center">
+    <a href="{{ url_for('comunidad.perfil', codigo=stand.codigo_acceso, stand_id=otro.id) }}" class="d-flex align-items-center text-decoration-none text-dark">
+        {% if otro.foto %}
+        <img src="{{ otro.foto }}" alt="" style="width: 36px; height: 36px; object-fit: cover; border-radius: 50%;">
+        {% else %}
+        <div class="d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2);">
+            <i class="bi bi-person-fill text-white small"></i>
+        </div>
+        {% endif %}
+        <strong class="ms-2" style="font-size: 0.95rem;">{{ otro.nombre }}</strong>
+    </a>
+</div>
+
+<!-- Messages -->
+<div class="chat-messages mb-3" id="chat-messages">
+    {% if mensajes|length == 0 %}
+    <div class="text-center text-muted py-4">
+        <i class="bi bi-chat-dots" style="font-size: 2rem;"></i>
+        <p class="small mt-1 mb-0">Envia el primer mensaje!</p>
+    </div>
+    {% endif %}
+
+    {% for msg in mensajes %}
+    <div class="chat-bubble {{ 'chat-sent' if msg.remitente_id == stand.id else 'chat-received' }}">
+        <p class="mb-0">{{ msg.contenido }}</p>
+        <small class="chat-time">{{ msg.created_at.strftime('%H:%M') }}</small>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Input -->
+<div class="chat-input-wrapper">
+    <form method="POST" class="d-flex gap-2">
+        <input type="text" class="form-control" name="contenido" placeholder="Escribe un mensaje..." maxlength="1000" required autocomplete="off" style="border-radius: 20px;">
+        <button type="submit" class="btn btn-primary flex-shrink-0" style="border-radius: 50%; width: 42px; height: 42px; padding: 0;">
+            <i class="bi bi-send"></i>
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Scroll to bottom of chat
+const chatEl = document.getElementById('chat-messages');
+chatEl.scrollTop = chatEl.scrollHeight;
+// Focus input
+document.querySelector('input[name="contenido"]').focus();
+</script>
+{% endblock %}

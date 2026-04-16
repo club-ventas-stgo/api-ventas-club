@@ -148,5 +148,90 @@
             </div>
         </a>
     </div>
+    <div class="col-6 col-md-4">
+        <a href="{{ url_for('comunidad.feed', codigo=stand.codigo_acceso) }}" class="tile-link">
+            <div class="tile dash-tile position-relative">
+                <div class="tile-icon" style="background: linear-gradient(135deg, #e91e63, #f06292); color: white;">
+                    <i class="bi bi-people"></i>
+                </div>
+                <h6>Comunidad</h6>
+                <small>Social y mensajes</small>
+                {% if no_leidos_comunidad > 0 %}
+                <span class="position-absolute top-0 end-0 badge bg-danger rounded-pill m-2" style="font-size: 0.7rem;">{{ no_leidos_comunidad }}</span>
+                {% endif %}
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-4">
+        <div class="tile dash-tile" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modal-ajustes">
+            <div class="tile-icon" style="background: linear-gradient(135deg, #8e8e93, #636366); color: white;">
+                <i class="bi bi-gear"></i>
+            </div>
+            <h6>Ajustes</h6>
+            <small>Editar o eliminar</small>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ajustes del Stand -->
+<div class="modal fade" id="modal-ajustes" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('stand.editar_stand', codigo=stand.codigo_acceso) }}" enctype="multipart/form-data">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title fw-bold"><i class="bi bi-gear"></i> Ajustes del Stand</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Nombre</label>
+                        <input type="text" class="form-control" name="nombre" value="{{ stand.nombre }}" maxlength="100" style="border-radius: 12px;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Cambiar Foto</label>
+                        <input type="file" class="form-control" name="foto" accept="image/*" style="border-radius: 12px;">
+                    </div>
+                    {% if stand.foto %}
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="quitar_foto" value="1" id="quitar-foto">
+                        <label class="form-check-label small" for="quitar-foto">Quitar foto actual</label>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer py-2 d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-danger btn-sm" style="border-radius: 10px;" data-bs-toggle="modal" data-bs-target="#modal-eliminar" data-bs-dismiss="modal">
+                        <i class="bi bi-trash"></i> Eliminar Stand
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="border-radius: 12px;">
+                        <i class="bi bi-check-lg"></i> Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Eliminacion -->
+<div class="modal fade" id="modal-eliminar" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle"></i> Eliminar Stand</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="mb-1">Se eliminara <strong>{{ stand.nombre }}</strong>.</p>
+                <p class="small text-muted mb-0">Los registros de ventas se conservaran.</p>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="border-radius: 10px;">Cancelar</button>
+                <form method="POST" action="{{ url_for('stand.eliminar_stand', codigo=stand.codigo_acceso) }}">
+                    <button type="submit" class="btn btn-danger btn-sm" style="border-radius: 10px;">
+                        <i class="bi bi-trash"></i> Confirmar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

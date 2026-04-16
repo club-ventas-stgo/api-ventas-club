@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from sqlalchemy import func
 from app import db
-from models import Stand, Producto, Promocion, Venta
+from models import Stand, Producto, Promocion, Venta, Mensaje
 from routes.main import comprimir_imagen
 
 stand_bp = Blueprint('stand', __name__, url_prefix='/s')
@@ -33,13 +33,43 @@ def dashboard(codigo):
     ventas_en_prep = stand.ventas.filter_by(estado_entrega='en_preparacion').count()
     total_recaudado = db.session.query(func.coalesce(func.sum(Venta.total_final), 0)).filter_by(stand_id=stand.id).scalar()
     ganancia_neta = total_recaudado - (stand.inversion or 0)
+    no_leidos_comunidad = Mensaje.query.filter_by(destinatario_id=stand.id, leido=False).count()
     return render_template('stand/dashboard.html', stand=stand,
                            total_ventas=total_ventas,
                            productos_activos=productos_activos,
                            ventas_pendientes=ventas_pendientes,
                            ventas_en_prep=ventas_en_prep,
                            total_recaudado=total_recaudado,
-                           ganancia_neta=ganancia_neta)
+                           ganancia_neta=ganancia_neta,
+                           no_leidos_comunidad=no_leidos_comunidad)
+
+
+@stand_bp.route('/<codigo>/editar', methods=['POST'])
+def editar_stand(codigo):
+    stand = get_stand_or_404(codigo)
+    nombre = request.form.get('nombre', '').strip()
+    if nombre:
+        stand.nombre = nombre
+    if 'foto' in request.files and request.files['foto'].filename:
+        try:
+            stand.foto = comprimir_imagen(request.files['foto'])
+        except Exception:
+            flash('Error al procesar la imagen.', 'danger')
+            return redirect(url_for('stand.dashboard', codigo=codigo))
+    if request.form.get('quitar_foto') == '1':
+        stand.foto = None
+    db.session.commit()
+    flash('Stand actualizado.', 'success')
+    return redirect(url_for('stand.dashboard', codigo=codigo))
+
+
+@stand_bp.route('/<codigo>/eliminar', methods=['POST'])
+def eliminar_stand(codigo):
+    stand = get_stand_or_404(codigo)
+    stand.activo = False
+    db.session.commit()
+    flash(f'Stand "{stand.nombre}" eliminado.', 'info')
+    return redirect(url_for('main.index'))
 
 
 @stand_bp.route('/<codigo>/productos', methods=['GET', 'POST'])
