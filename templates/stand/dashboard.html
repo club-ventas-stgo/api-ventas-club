@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}{{ stand.nombre }}{% endblock %}
+
+{% block nav_items %}
+<span class="navbar-text small text-light">
+    <i class="bi bi-key"></i> {{ stand.codigo_acceso }}
+</span>
+{% endblock %}
+
+{% block content %}
+<!-- Stand header -->
+<div class="tile mb-3" style="padding: 0.75rem 1rem;">
+    <div class="d-flex align-items-center">
+        {% if stand.foto %}
+        <img src="{{ stand.foto }}" alt="{{ stand.nombre }}" class="me-2" style="width: 44px; height: 44px; object-fit: cover; border-radius: 12px;">
+        {% else %}
+        <div class="me-2 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #667eea, #764ba2);">
+            <i class="bi bi-shop text-white"></i>
+        </div>
+        {% endif %}
+        <h5 class="mb-0 fw-bold">{{ stand.nombre }}</h5>
+    </div>
+</div>
+
+<!-- Stats row -->
+<div class="row g-2 mb-3">
+    <div class="col-6 col-sm-3">
+        <div class="tile stat-tile" style="background: linear-gradient(135deg, #007aff, #5856d6); color: white;">
+            <div class="stat-value">{{ productos_activos }}</div>
+            <div class="stat-label">Productos</div>
+        </div>
+    </div>
+    <div class="col-6 col-sm-3">
+        <div class="tile stat-tile" style="background: linear-gradient(135deg, #34c759, #30d158); color: white;">
+            <div class="stat-value">{{ total_ventas }}</div>
+            <div class="stat-label">Ventas</div>
+        </div>
+    </div>
+    <div class="col-6 col-sm-3">
+        <div class="tile stat-tile" style="background: linear-gradient(135deg, #ff9500, #ff6b00); color: white;">
+            <div class="stat-value">{{ ventas_pendientes }}</div>
+            <div class="stat-label">Pendiente</div>
+        </div>
+    </div>
+    <div class="col-6 col-sm-3">
+        <div class="tile stat-tile" style="background: linear-gradient(135deg, #5ac8fa, #0a84ff); color: white;">
+            <div class="stat-value">{{ ventas_en_prep }}</div>
+            <div class="stat-label">En Prep.</div>
+        </div>
+    </div>
+</div>
+
+<!-- Financial summary tile -->
+<div class="tile finance-tile mb-3">
+    <div class="finance-row mb-2">
+        <div class="finance-item">
+            <div class="finance-value text-success">${{ '{:,}'.format(total_recaudado) }}</div>
+            <div class="finance-label">Recaudado</div>
+        </div>
+        <div class="finance-item">
+            <div class="finance-value">${{ '{:,}'.format(stand.inversion or 0) }}</div>
+            <div class="finance-label">Inversion</div>
+        </div>
+        <div class="finance-item">
+            <div class="finance-value {{ 'profit-positive' if ganancia_neta >= 0 else 'profit-negative' }}">
+                ${{ '{:,}'.format(ganancia_neta) }}
+            </div>
+            <div class="finance-label">Ganancia</div>
+        </div>
+    </div>
+    <div class="collapse" id="form-inversion">
+        <form method="POST" class="input-group input-group-sm mt-2">
+            <span class="input-group-text" style="border-radius: 10px 0 0 10px;">$ Inversion</span>
+            <input type="number" class="form-control" name="inversion" value="{{ stand.inversion or 0 }}" min="0">
+            <button type="submit" class="btn btn-primary" style="border-radius: 0 10px 10px 0;">Guardar</button>
+        </form>
+    </div>
+    <button class="btn btn-sm btn-light w-100 mt-1" data-bs-toggle="collapse" data-bs-target="#form-inversion" style="border-radius: 10px; font-size: 0.75rem;">
+        <i class="bi bi-pencil"></i> Editar Inversion
+    </button>
+</div>
+
+<!-- Navigation tiles -->
+<div class="row g-2">
+    <div class="col-6 col-md-4">
+        <a href="{{ url_for('ventas.nueva', codigo=stand.codigo_acceso) }}" class="tile-link">
+            <div class="tile dash-tile">
+                <div class="tile-icon" style="background: linear-gradient(135deg, #34c759, #30d158); color: white;">
+                    <i class="bi bi-cart-plus"></i>
+                </div>
+                <h6>Nueva Venta</h6>
+                <small>Registrar pedido</small>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-4">
+        <a href="{{ url_for('ventas.lista', codigo=stand.codigo_acceso) }}" class="tile-link">
+            <div class="tile dash-tile">
+                <div class="tile-icon" style="background: linear-gradient(135deg, #5ac8fa, #0a84ff); color: white;">
+                    <i class="bi bi-receipt"></i>
+                </div>
+                <h6>Ventas</h6>
+                <small>Historial y registros</small>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-4">
+        <a href="{{ url_for('cocina.panel', codigo=stand.codigo_acceso) }}" class="tile-link">
+            <div class="tile dash-tile">
+                <div class="tile-icon" style="background: linear-gradient(135deg, #ff3b30, #ff6b6b); color: white;">
+                    <i class="bi bi-fire"></i>
+                </div>
+                <h6>Cocina</h6>
+                <small>Pedidos en curso</small>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-4">
+        <a href="{{ url_for('stand.productos', codigo=stand.codigo_acceso) }}" class="tile-link">
+            <div class="tile dash-tile">
+                <div class="tile-icon" style="background: linear-gradient(135deg, #007aff, #5856d6); color: white;">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <h6>Productos</h6>
+                <small>Inventario y precios</small>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-4">
+        <a href="{{ url_for('stand.promociones', codigo=stand.codigo_acceso) }}" class="tile-link">
+            <div class="tile dash-tile">
+                <div class="tile-icon" style="background: linear-gradient(135deg, #ff9500, #ffcc00); color: white;">
+                    <i class="bi bi-tag"></i>
+                </div>
+                <h6>Promociones</h6>
+                <small>Ofertas activas</small>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-4">
+        <a href="{{ url_for('registros.index', codigo=stand.codigo_acceso) }}" class="tile-link">
+            <div class="tile dash-tile">
+                <div class="tile-icon" style="background: linear-gradient(135deg, #ff9500, #ff6b00); color: white;">
+                    <i class="bi bi-folder2-open"></i>
+                </div>
+                <h6>Registros</h6>
+                <small>Historial y Excel</small>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

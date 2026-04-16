@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Productos - {{ stand.nombre }}{% endblock %}
+
+{% block nav_items %}
+<a class="nav-link text-white py-0" href="{{ url_for('stand.dashboard', codigo=stand.codigo_acceso) }}">
+    <i class="bi bi-arrow-left"></i> {{ stand.nombre }}
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0 fw-bold"><i class="bi bi-box-seam"></i> Productos</h5>
+</div>
+
+<!-- Tile grid of products + add new tile -->
+<div class="row g-2">
+    {% for p in productos %}
+    <div class="col-6 col-md-4 col-lg-3">
+        <div class="tile {{ 'opacity-50' if not p.activo }}" style="padding: 0;">
+            {% if p.foto %}
+            <img src="{{ p.foto }}" alt="{{ p.nombre }}" style="width: 100%; height: 110px; object-fit: cover; border-radius: 18px 18px 0 0; display: block;">
+            {% else %}
+            <div class="d-flex align-items-center justify-content-center" style="height: 110px; border-radius: 18px 18px 0 0; background: linear-gradient(135deg, #e0e0e0, #c0c0c0);">
+                <i class="bi bi-box text-white" style="font-size: 2rem;"></i>
+            </div>
+            {% endif %}
+            <div style="padding: 0.6rem;">
+                <h6 class="mb-0 text-truncate" style="font-size: 0.85rem;">{{ p.nombre }}</h6>
+                <span class="fw-bold text-success">${{ '{:,}'.format(p.precio) }}</span>
+                {% if not p.activo %}
+                <span class="badge bg-danger" style="font-size: 0.6rem;">Off</span>
+                {% endif %}
+                <div class="d-flex gap-1 mt-1">
+                    <button class="btn btn-sm btn-outline-primary flex-grow-1" data-bs-toggle="modal" data-bs-target="#editar-{{ p.id }}" style="border-radius: 8px; font-size: 0.7rem;">
+                        <i class="bi bi-pencil"></i> Editar
+                    </button>
+                    <form method="POST" action="{{ url_for('stand.toggle_producto', codigo=stand.codigo_acceso, producto_id=p.id) }}">
+                        <button type="submit" class="btn btn-sm {{ 'btn-outline-danger' if p.activo else 'btn-outline-success' }}" style="border-radius: 8px; font-size: 0.7rem;">
+                            <i class="bi {{ 'bi-eye-slash' if p.activo else 'bi-eye' }}"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit modal -->
+    <div class="modal fade" id="editar-{{ p.id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('stand.editar_producto', codigo=stand.codigo_acceso, producto_id=p.id) }}" enctype="multipart/form-data">
+                    <div class="modal-header py-2">
+                        <h6 class="modal-title fw-bold">Editar {{ p.nombre }}</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Nombre</label>
+                            <input type="text" class="form-control" name="nombre" value="{{ p.nombre }}" maxlength="100" style="border-radius: 12px;">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Precio ($)</label>
+                            <input type="number" class="form-control" name="precio" value="{{ p.precio }}" min="0" style="border-radius: 12px;">
+                        </div>
+                        <div>
+                            <label class="form-label small fw-semibold">Nueva Foto</label>
+                            <input type="file" class="form-control" name="foto" accept="image/*" style="border-radius: 12px;">
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius: 10px;">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" style="border-radius: 10px;">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Add new product tile (always last) -->
+    <div class="col-6 col-md-4 col-lg-3">
+        <div class="tile tile-new" data-bs-toggle="modal" data-bs-target="#modal-agregar" style="min-height: 170px;">
+            <div class="text-center text-muted">
+                <i class="bi bi-plus-circle" style="font-size: 2rem;"></i>
+                <p class="mb-0 mt-1 fw-semibold" style="font-size: 0.8rem;">Agregar Producto</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal agregar producto -->
+<div class="modal fade" id="modal-agregar" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title fw-bold"><i class="bi bi-plus-circle"></i> Nuevo Producto</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Nombre</label>
+                        <input type="text" class="form-control" name="nombre" required maxlength="100" placeholder="Ej: Empanada de pino" style="border-radius: 12px;">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Precio ($)</label>
+                        <input type="number" class="form-control" name="precio" required min="0" placeholder="500" style="border-radius: 12px;">
+                    </div>
+                    <div>
+                        <label class="form-label small fw-semibold">Foto (opcional)</label>
+                        <input type="file" class="form-control" name="foto" accept="image/*" style="border-radius: 12px;">
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="submit" class="btn btn-primary w-100" style="border-radius: 12px;">
+                        <i class="bi bi-plus-lg"></i> Agregar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

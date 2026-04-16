@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Nueva Venta - {{ stand.nombre }}{% endblock %}
+
+{% block nav_items %}
+<a class="nav-link text-white py-0" href="{{ url_for('stand.dashboard', codigo=stand.codigo_acceso) }}">
+    <i class="bi bi-arrow-left"></i> {{ stand.nombre }}
+</a>
+{% endblock %}
+
+{% block content %}
+<form method="POST" id="form-venta">
+    <input type="hidden" name="items" id="items-json">
+
+    {% if promociones %}
+    <div class="tile mb-2" style="padding: 0.5rem 0.75rem; background: #fff8e1; border: 1px solid #ffe082;">
+        <strong class="small"><i class="bi bi-tag-fill text-warning"></i> Promos:</strong>
+        {% for promo in promociones %}
+        <span class="badge bg-warning text-dark">{{ promo.nombre }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Product grid -->
+    {% if productos %}
+    <div class="row g-2 mb-2">
+        {% for p in productos %}
+        <div class="col-4 col-sm-3 col-md-3 col-lg-2">
+            <button type="button" class="btn btn-outline-primary producto-btn w-100 h-100 d-flex flex-column align-items-center justify-content-center"
+                    data-id="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}">
+                {% if p.foto %}
+                <img src="{{ p.foto }}" class="mb-1">
+                {% endif %}
+                <small class="fw-bold lh-sm text-center" style="font-size: 0.72rem;">{{ p.nombre }}</small>
+                <span class="text-success fw-bold" style="font-size: 0.78rem;">${{ '{:,}'.format(p.precio) }}</span>
+                <span class="badge bg-danger rounded-pill badge-qty d-none" id="badge-{{ p.id }}">0</span>
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="tile text-center py-4 mb-2">
+        <p class="text-muted mb-1">No hay productos activos.</p>
+        <a href="{{ url_for('stand.productos', codigo=stand.codigo_acceso) }}" class="btn btn-sm btn-primary" style="border-radius: 10px;">Agregar Productos</a>
+    </div>
+    {% endif %}
+
+    <!-- Order summary -->
+    <div id="resumen-sticky">
+        <div class="tile" style="padding: 0; overflow: hidden; border: 2px solid #34c759;">
+            <div style="background: linear-gradient(135deg, #34c759, #30d158); color: white; padding: 0.5rem 0.75rem;" class="d-flex justify-content-between align-items-center">
+                <strong><i class="bi bi-receipt"></i> Pedido</strong>
+                <span id="total-display" class="fs-5 fw-bold">$0</span>
+            </div>
+            <div id="items-list" style="max-height: 180px; overflow-y: auto; padding: 0.5rem 0.75rem;">
+                <p class="text-muted text-center small mb-0">Toca los productos para agregar</p>
+            </div>
+            <div style="padding: 0.5rem 0.75rem; border-top: 1px solid #e9ecef;">
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text" style="border-radius: 8px 0 0 8px;">$</span>
+                            <input type="number" class="form-control" id="total_final" name="total_final" value="0" min="0" style="border-radius: 0 8px 8px 0;">
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <input type="text" class="form-control form-control-sm" name="cliente_nombre" placeholder="Cliente" maxlength="100" style="border-radius: 8px;">
+                    </div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="metodo_pago" id="mp-efectivo" value="efectivo" checked>
+                            <label class="btn btn-outline-secondary btn-sm" for="mp-efectivo" style="border-radius: 8px 0 0 8px;"><i class="bi bi-cash"></i> Efectivo</label>
+                            <input type="radio" class="btn-check" name="metodo_pago" id="mp-transferencia" value="transferencia">
+                            <label class="btn btn-outline-secondary btn-sm" for="mp-transferencia" style="border-radius: 0 8px 8px 0;"><i class="bi bi-phone"></i> Transf.</label>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <input type="text" class="form-control form-control-sm" name="notas" placeholder="Notas" style="border-radius: 8px;">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success w-100 py-2 fw-bold" id="btn-confirmar" disabled style="border-radius: 12px;">
+                    <i class="bi bi-check-lg"></i> Confirmar Venta
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const items = {};
+
+function fmt(n) { return '$' + n.toLocaleString('es-CL'); }
+
+function render() {
+    const list = document.getElementById('items-list');
+    const keys = Object.keys(items);
+
+    document.querySelectorAll('.badge-qty').forEach(b => b.classList.add('d-none'));
+    keys.forEach(id => {
+        const badge = document.getElementById('badge-' + id);
+        if (badge) { badge.textContent = items[id].cantidad; badge.classList.remove('d-none'); }
+    });
+
+    if (keys.length === 0) {
+        list.innerHTML = '<p class="text-muted text-center small mb-0">Toca los productos para agregar</p>';
+        document.getElementById('total_final').value = 0;
+        document.getElementById('total-display').textContent = '$0';
+        document.getElementById('btn-confirmar').disabled = true;
+        return;
+    }
+
+    let html = '', total = 0;
+    keys.forEach(id => {
+        const item = items[id], sub = item.precio * item.cantidad;
+        total += sub;
+        html += `
+        <div class="d-flex align-items-center justify-content-between py-1 border-bottom">
+            <div class="flex-grow-1 me-2">
+                <strong style="font-size:0.82rem;">${item.nombre}</strong>
+                <span class="text-muted" style="font-size:0.72rem;"> ${fmt(item.precio)} x${item.cantidad} = ${fmt(sub)}</span>
+            </div>
+            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                <button type="button" class="btn btn-outline-danger btn-qty" onclick="cambiar(${id},-1)">-</button>
+                <span class="fw-bold" style="min-width:18px;text-align:center;font-size:0.9rem;">${item.cantidad}</span>
+                <button type="button" class="btn btn-outline-success btn-qty" onclick="cambiar(${id},1)">+</button>
+            </div>
+        </div>`;
+    });
+
+    list.innerHTML = html;
+    document.getElementById('total-display').textContent = fmt(total);
+    document.getElementById('total_final').value = total;
+    document.getElementById('btn-confirmar').disabled = false;
+}
+
+function cambiar(id, delta) {
+    if (items[id]) { items[id].cantidad += delta; if (items[id].cantidad <= 0) delete items[id]; render(); }
+}
+
+document.querySelectorAll('.producto-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        if (items[id]) { items[id].cantidad++; }
+        else { items[id] = { producto_id: parseInt(id), nombre: this.dataset.nombre, precio: parseInt(this.dataset.precio), cantidad: 1 }; }
+        render();
+    });
+});
+
+document.getElementById('form-venta').addEventListener('submit', function() {
+    document.getElementById('items-json').value = JSON.stringify(Object.values(items).map(i => ({producto_id: i.producto_id, cantidad: i.cantidad})));
+});
+</script>
+{% endblock %}

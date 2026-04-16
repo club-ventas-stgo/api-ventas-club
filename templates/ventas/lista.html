@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Ventas - {{ stand.nombre }}{% endblock %}
+
+{% block nav_items %}
+<a class="nav-link text-white py-0" href="{{ url_for('stand.dashboard', codigo=stand.codigo_acceso) }}">
+    <i class="bi bi-arrow-left"></i> {{ stand.nombre }}
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0 fw-bold"><i class="bi bi-receipt"></i> Ventas</h5>
+</div>
+
+<!-- Filters tile -->
+<div class="tile filter-bar mb-3" style="padding: 0.5rem 0.75rem;">
+    <form method="GET" class="d-flex gap-1 align-items-center">
+        <select name="estado_entrega" class="form-select form-select-sm flex-fill" style="border-radius: 8px; min-width: 0;">
+            <option value="">Entrega: Todos</option>
+            <option value="pendiente" {{ 'selected' if filtro_estado == 'pendiente' }}>Pendiente</option>
+            <option value="en_preparacion" {{ 'selected' if filtro_estado == 'en_preparacion' }}>En Prep.</option>
+            <option value="listo" {{ 'selected' if filtro_estado == 'listo' }}>Listo</option>
+            <option value="entregado" {{ 'selected' if filtro_estado == 'entregado' }}>Entregado</option>
+        </select>
+        <select name="estado_pago" class="form-select form-select-sm flex-fill" style="border-radius: 8px; min-width: 0;">
+            <option value="">Pago: Todos</option>
+            <option value="pendiente" {{ 'selected' if filtro_pago == 'pendiente' }}>Pendiente</option>
+            <option value="parcial" {{ 'selected' if filtro_pago == 'parcial' }}>Parcial</option>
+            <option value="pagado" {{ 'selected' if filtro_pago == 'pagado' }}>Pagado</option>
+        </select>
+        <button type="submit" class="btn btn-sm btn-primary flex-shrink-0" style="border-radius: 8px;"><i class="bi bi-funnel"></i></button>
+    </form>
+</div>
+
+<!-- Day groups -->
+{% if ventas_por_dia %}
+    {% for dia, data in ventas_por_dia.items() %}
+    <div class="day-group">
+        <div class="day-group-header d-flex justify-content-between align-items-center"
+             data-bs-toggle="collapse" data-bs-target="#dia-{{ loop.index }}">
+            <div>
+                <i class="bi bi-calendar3"></i>
+                <strong>{{ dia }}</strong>
+                <span class="badge bg-secondary" style="border-radius: 8px;">{{ data.count }}</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="fw-bold text-success">${{ '{:,}'.format(data.total) }}</span>
+                <i class="bi bi-chevron-down"></i>
+            </div>
+        </div>
+        <div class="collapse {{ 'show' if loop.first }}" id="dia-{{ loop.index }}">
+            {% for v in data.ventas %}
+            <a href="{{ url_for('ventas.detalle', codigo=stand.codigo_acceso, venta_id=v.id) }}"
+               class="venta-item estado-{{ v.estado_entrega }}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <strong>#{{ v.numero_orden }}</strong>
+                            {% if v.cliente_nombre %}
+                            <small class="text-muted">{{ v.cliente_nombre }}</small>
+                            {% endif %}
+                            <small class="text-muted">{{ v.created_at.strftime('%H:%M') }}</small>
+                        </div>
+                        <div style="font-size: 0.78rem;">
+                            {% for d in v.detalles %}
+                            <span class="text-muted">{{ d.cantidad }}x {{ d.nombre_producto }}{% if not loop.last %}, {% endif %}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="text-end flex-shrink-0 ms-2">
+                        <strong>${{ '{:,}'.format(v.total_final) }}</strong>
+                        <div>
+                            {% if v.estado_pago == 'pagado' %}
+                            <span class="badge bg-success" style="font-size:0.6rem; border-radius: 6px;">Pagado</span>
+                            {% elif v.estado_pago == 'parcial' %}
+                            <span class="badge bg-warning text-dark" style="font-size:0.6rem; border-radius: 6px;">Parcial</span>
+                            {% else %}
+                            <span class="badge bg-danger" style="font-size:0.6rem; border-radius: 6px;">Pend.</span>
+                            {% endif %}
+                            {% if v.estado_entrega == 'entregado' %}
+                            <span class="badge bg-success" style="font-size:0.6rem; border-radius: 6px;">Entregado</span>
+                            {% elif v.estado_entrega == 'listo' %}
+                            <span class="badge bg-info" style="font-size:0.6rem; border-radius: 6px;">Listo</span>
+                            {% elif v.estado_entrega == 'en_preparacion' %}
+                            <span class="badge bg-warning text-dark" style="font-size:0.6rem; border-radius: 6px;">Prep.</span>
+                            {% else %}
+                            <span class="badge bg-secondary" style="font-size:0.6rem; border-radius: 6px;">Pend.</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="tile text-center py-5">
+    <i class="bi bi-receipt text-muted" style="font-size: 3rem;"></i>
+    <p class="text-muted mt-2 mb-0">No hay ventas registradas.</p>
+</div>
+{% endif %}
+
+<!-- FAB -->
+<a href="{{ url_for('ventas.nueva', codigo=stand.codigo_acceso) }}" class="btn btn-success fab">
+    <i class="bi bi-plus-lg"></i>
+</a>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.day-group-header').forEach(h => {
+    h.addEventListener('click', function() { this.classList.toggle('collapsed'); });
+});
+</script>
+{% endblock %}

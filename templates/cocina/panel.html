@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Cocina - {{ stand.nombre }}{% endblock %}
+
+{% block nav_items %}
+<a class="nav-link text-white py-0" href="{{ url_for('stand.dashboard', codigo=stand.codigo_acceso) }}">
+    <i class="bi bi-arrow-left"></i> {{ stand.nombre }}
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0 fw-bold"><i class="bi bi-fire"></i> Cocina</h5>
+    <span class="badge bg-secondary" style="border-radius: 8px;">Auto 5s</span>
+</div>
+
+<div id="pedidos-container">
+    {% if pedidos %}
+    <div class="row g-2">
+        {% for p in pedidos %}
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card cocina-card border-{{ 'warning' if p.estado_entrega == 'en_preparacion' else 'danger' }}">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center {{ 'bg-warning text-dark' if p.estado_entrega == 'en_preparacion' else 'bg-danger text-white' }}">
+                    <strong>#{{ p.numero_orden }}</strong>
+                    <span>{{ p.created_at.strftime('%H:%M') }}</span>
+                </div>
+                <div class="card-body p-2">
+                    {% if p.cliente_nombre %}
+                    <p class="mb-1 fw-bold"><i class="bi bi-person"></i> {{ p.cliente_nombre }}</p>
+                    {% endif %}
+
+                    <ul class="list-unstyled mb-2">
+                        {% for d in p.detalles %}
+                        <li class="py-1 border-bottom">
+                            <strong>{{ d.cantidad }}x</strong> {{ d.nombre_producto }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+
+                    {% if p.notas %}
+                    <div class="tile mb-2" style="background: #e3f2fd; padding: 0.3rem 0.5rem; font-size: 0.85rem;">
+                        <i class="bi bi-chat-text"></i> {{ p.notas }}
+                    </div>
+                    {% endif %}
+
+                    {% if p.estado_entrega == 'pendiente' %}
+                    <form method="POST" action="{{ url_for('ventas.cambiar_estado', codigo=stand.codigo_acceso, venta_id=p.id) }}">
+                        <input type="hidden" name="estado_entrega" value="en_preparacion">
+                        <input type="hidden" name="redirect" value="cocina">
+                        <button type="submit" class="btn btn-warning w-100 py-2 fw-bold">
+                            <i class="bi bi-play-fill"></i> Preparar
+                        </button>
+                    </form>
+                    {% elif p.estado_entrega == 'en_preparacion' %}
+                    <form method="POST" action="{{ url_for('ventas.cambiar_estado', codigo=stand.codigo_acceso, venta_id=p.id) }}">
+                        <input type="hidden" name="estado_entrega" value="listo">
+                        <input type="hidden" name="redirect" value="cocina">
+                        <button type="submit" class="btn btn-success w-100 py-2 fw-bold">
+                            <i class="bi bi-check-lg"></i> Listo!
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="tile text-center py-5">
+        <i class="bi bi-check-circle text-success" style="font-size: 4rem;"></i>
+        <h4 class="mt-3">Sin pedidos pendientes</h4>
+        <p class="text-muted">Los nuevos pedidos apareceran automaticamente</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const apiUrl = "{{ url_for('cocina.api_pedidos', codigo=stand.codigo_acceso) }}";
+const codigoStand = "{{ stand.codigo_acceso }}";
+
+function refreshPedidos() {
+    fetch(apiUrl)
+        .then(r => r.json())
+        .then(pedidos => {
+            const container = document.getElementById('pedidos-container');
+
+            if (pedidos.length === 0) {
+                container.innerHTML = `
+                    <div class="tile text-center py-5">
+                        <i class="bi bi-check-circle text-success" style="font-size: 4rem;"></i>
+                        <h4 class="mt-3">Sin pedidos pendientes</h4>
+                        <p class="text-muted">Los nuevos pedidos apareceran automaticamente</p>
+                    </div>`;
+                return;
+            }
+
+            let html = '<div class="row g-2">';
+            pedidos.forEach(p => {
+                const borderClass = p.estado_entrega === 'en_preparacion' ? 'warning' : 'danger';
+                const headerClass = p.estado_entrega === 'en_preparacion' ? 'bg-warning text-dark' : 'bg-danger text-white';
+
+                let itemsHtml = '';
+                p.detalles.forEach(d => {
+                    itemsHtml += `<li class="py-1 border-bottom"><strong>${d.cantidad}x</strong> ${d.nombre_producto}</li>`;
+                });
+
+                let clienteHtml = p.cliente_nombre ? `<p class="mb-1 fw-bold"><i class="bi bi-person"></i> ${p.cliente_nombre}</p>` : '';
+                let notasHtml = p.notas ? `<div class="tile mb-2" style="background:#e3f2fd;padding:0.3rem 0.5rem;font-size:0.85rem;"><i class="bi bi-chat-text"></i> ${p.notas}</div>` : '';
+
+                let btnHtml = '';
+                if (p.estado_entrega === 'pendiente') {
+                    btnHtml = `<form method="POST" action="/s/${codigoStand}/ventas/${p.id}/estado">
+                        <input type="hidden" name="estado_entrega" value="en_preparacion">
+                        <input type="hidden" name="redirect" value="cocina">
+                        <button type="submit" class="btn btn-warning w-100 py-2 fw-bold"><i class="bi bi-play-fill"></i> Preparar</button>
+                    </form>`;
+                } else if (p.estado_entrega === 'en_preparacion') {
+                    btnHtml = `<form method="POST" action="/s/${codigoStand}/ventas/${p.id}/estado">
+                        <input type="hidden" name="estado_entrega" value="listo">
+                        <input type="hidden" name="redirect" value="cocina">
+                        <button type="submit" class="btn btn-success w-100 py-2 fw-bold"><i class="bi bi-check-lg"></i> Listo!</button>
+                    </form>`;
+                }
+
+                html += `
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card cocina-card border-${borderClass}">
+                        <div class="card-header py-2 d-flex justify-content-between align-items-center ${headerClass}">
+                            <strong>#${p.numero_orden}</strong>
+                            <span>${p.created_at}</span>
+                        </div>
+                        <div class="card-body p-2">
+                            ${clienteHtml}
+                            <ul class="list-unstyled mb-2">${itemsHtml}</ul>
+                            ${notasHtml}
+                            ${btnHtml}
+                        </div>
+                    </div>
+                </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        })
+        .catch(err => console.error('Error refreshing:', err));
+}
+
+setInterval(refreshPedidos, 5000);
+</script>
+{% endblock %}

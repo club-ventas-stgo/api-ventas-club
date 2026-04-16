@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Ventas Club - Inicio{% endblock %}
+
+{% block content %}
+<!-- Access by code - compact bar -->
+<div class="tile mb-3" style="padding: 0.6rem 1rem;">
+    <form id="form-acceso" class="d-flex align-items-center gap-2">
+        <i class="bi bi-key text-muted"></i>
+        <input type="text" class="form-control form-control-sm code-input" id="codigo-acceso" placeholder="CODIGO" maxlength="10" style="max-width: 140px;">
+        <button type="submit" class="btn btn-sm btn-dark" style="border-radius: 10px;">Entrar</button>
+    </form>
+</div>
+
+<!-- Tiles grid -->
+<div class="row g-3">
+    {% for stand in stands %}
+    <div class="col-6 col-md-4 col-lg-3">
+        <a href="{{ url_for('stand.dashboard', codigo=stand.codigo_acceso) }}" class="tile-link">
+            <div class="tile stand-tile">
+                {% if stand.foto %}
+                <img src="{{ stand.foto }}" class="stand-tile-img" alt="{{ stand.nombre }}">
+                {% else %}
+                <div class="stand-tile-placeholder bg-gradient" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    <i class="bi bi-shop text-white"></i>
+                </div>
+                {% endif %}
+                <div class="stand-tile-body">
+                    <h6 class="mb-1" style="font-size: 0.9rem;">{{ stand.nombre }}</h6>
+                    <span class="stand-tile-code"><i class="bi bi-key"></i> {{ stand.codigo_acceso }}</span>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+
+    <!-- Create new stand tile (always last) -->
+    <div class="col-6 col-md-4 col-lg-3">
+        <div class="tile tile-new" data-bs-toggle="modal" data-bs-target="#modal-crear">
+            <div class="text-center text-muted">
+                <i class="bi bi-plus-circle" style="font-size: 2.5rem;"></i>
+                <p class="mb-0 mt-1 fw-semibold" style="font-size: 0.85rem;">Crear Stand</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal crear stand -->
+<div class="modal fade" id="modal-crear" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('main.crear_stand') }}" enctype="multipart/form-data">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title fw-bold"><i class="bi bi-plus-circle"></i> Nuevo Stand</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Nombre del Stand</label>
+                        <input type="text" class="form-control" name="nombre" required maxlength="100" placeholder="Ej: Empanadas Don Juan" style="border-radius: 12px;">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Foto (opcional)</label>
+                        <input type="file" class="form-control" name="foto" accept="image/*" style="border-radius: 12px;">
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="submit" class="btn btn-primary w-100" style="border-radius: 12px;">
+                        <i class="bi bi-plus-lg"></i> Crear Stand
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('form-acceso').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const codigo = document.getElementById('codigo-acceso').value.trim().toUpperCase();
+    if (codigo) window.location.href = '/s/' + codigo;
+});
+</script>
+{% endblock %}

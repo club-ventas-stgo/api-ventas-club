@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Venta #{{ venta.numero_orden }}{% endblock %}
+
+{% block nav_items %}
+<a class="nav-link text-white py-0" href="{{ url_for('ventas.lista', codigo=stand.codigo_acceso) }}">
+    <i class="bi bi-arrow-left"></i> Ventas
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <!-- Order detail tile -->
+    <div class="col-12 col-lg-7">
+        <div class="tile" style="padding: 0; overflow: hidden;">
+            <div style="background: linear-gradient(135deg, #007aff, #5856d6); color: white; padding: 0.6rem 1rem;" class="d-flex justify-content-between align-items-center">
+                <strong>Venta #{{ venta.numero_orden }}</strong>
+                <small>{{ venta.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+            </div>
+            <div style="padding: 0.75rem 1rem;">
+                {% if venta.cliente_nombre %}
+                <p class="mb-1"><i class="bi bi-person"></i> <strong>{{ venta.cliente_nombre }}</strong></p>
+                {% endif %}
+                <p class="mb-2 small text-muted"><i class="bi bi-credit-card"></i> {{ venta.metodo_pago | capitalize }}</p>
+
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0" style="font-size: 0.85rem;">
+                        <thead>
+                            <tr><th>Producto</th><th class="text-center">Cant.</th><th class="text-end">P.Unit</th><th class="text-end">Subt.</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for d in venta.detalles %}
+                            <tr>
+                                <td>{{ d.nombre_producto }}</td>
+                                <td class="text-center">{{ d.cantidad }}</td>
+                                <td class="text-end">${{ '{:,}'.format(d.precio_unitario) }}</td>
+                                <td class="text-end">${{ '{:,}'.format(d.subtotal) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="text-end small text-muted">Calculado:</td>
+                                <td class="text-end">${{ '{:,}'.format(venta.total_original) }}</td>
+                            </tr>
+                            <tr style="background: #e8f5e9;">
+                                <td colspan="3" class="text-end"><strong>Final:</strong></td>
+                                <td class="text-end"><strong>${{ '{:,}'.format(venta.total_final) }}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                {% if venta.notas %}
+                <div class="tile mt-2" style="background: #f8f9fa; padding: 0.5rem 0.75rem; font-size: 0.85rem;">
+                    <i class="bi bi-chat-text"></i> {{ venta.notas }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit tile -->
+    <div class="col-12 col-lg-5">
+        <div class="tile" style="padding: 0; overflow: hidden;">
+            <div style="background: linear-gradient(135deg, #5856d6, #007aff); color: white; padding: 0.6rem 1rem;">
+                <strong><i class="bi bi-pencil"></i> Gestionar</strong>
+            </div>
+            <div style="padding: 0.75rem 1rem;">
+                <form method="POST">
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold mb-0">Entrega</label>
+                            <select name="estado_entrega" class="form-select form-select-sm" style="border-radius: 8px;">
+                                <option value="pendiente" {{ 'selected' if venta.estado_entrega == 'pendiente' }}>Pendiente</option>
+                                <option value="en_preparacion" {{ 'selected' if venta.estado_entrega == 'en_preparacion' }}>En Prep.</option>
+                                <option value="listo" {{ 'selected' if venta.estado_entrega == 'listo' }}>Listo</option>
+                                <option value="entregado" {{ 'selected' if venta.estado_entrega == 'entregado' }}>Entregado</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold mb-0">Pago</label>
+                            <select name="estado_pago" class="form-select form-select-sm" style="border-radius: 8px;">
+                                <option value="pendiente" {{ 'selected' if venta.estado_pago == 'pendiente' }}>Pendiente</option>
+                                <option value="parcial" {{ 'selected' if venta.estado_pago == 'parcial' }}>Parcial</option>
+                                <option value="pagado" {{ 'selected' if venta.estado_pago == 'pagado' }}>Pagado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold mb-0">Pagado ($)</label>
+                            <input type="number" class="form-control form-control-sm" name="monto_pagado" value="{{ venta.monto_pagado }}" min="0" style="border-radius: 8px;">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold mb-0">Total Final ($)</label>
+                            <input type="number" class="form-control form-control-sm" name="total_final" value="{{ venta.total_final }}" min="0" style="border-radius: 8px;">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold mb-0">Notas</label>
+                        <input type="text" class="form-control form-control-sm" name="notas" value="{{ venta.notas or '' }}" style="border-radius: 8px;">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100" style="border-radius: 12px;">
+                        <i class="bi bi-check-lg"></i> Actualizar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

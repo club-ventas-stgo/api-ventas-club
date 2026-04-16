@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Registros - {{ stand.nombre }}{% endblock %}
+
+{% block nav_items %}
+<a class="nav-link text-white py-0" href="{{ url_for('stand.dashboard', codigo=stand.codigo_acceso) }}">
+    <i class="bi bi-arrow-left"></i> {{ stand.nombre }}
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0 fw-bold"><i class="bi bi-folder2-open"></i> Registros Diarios</h5>
+    {% if dias %}
+    <a href="{{ url_for('registros.exportar_todo_excel', codigo=stand.codigo_acceso) }}"
+       class="btn btn-sm btn-success" style="border-radius: 10px;">
+        <i class="bi bi-file-earmark-excel"></i> Exportar Todo
+    </a>
+    {% endif %}
+</div>
+
+<!-- Resumen general -->
+{% if dias %}
+<div class="tile mb-3" style="padding: 0; overflow: hidden;">
+    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); color: white; padding: 0.6rem 1rem;" class="d-flex justify-content-between align-items-center">
+        <strong><i class="bi bi-bar-chart"></i> Resumen General</strong>
+        <span class="badge bg-light text-dark" style="border-radius: 8px;">{{ total_dias }} {{ 'dia' if total_dias == 1 else 'dias' }}</span>
+    </div>
+    <div style="padding: 0.75rem 1rem;">
+        <div class="row text-center g-2">
+            <div class="col-4">
+                <div class="fw-bold text-success" style="font-size: clamp(0.95rem, 3.5vw, 1.3rem);">${{ '{:,}'.format(total_general) }}</div>
+                <div class="text-muted" style="font-size: 0.68rem; text-transform: uppercase;">Total Acumulado</div>
+            </div>
+            <div class="col-4">
+                <div class="fw-bold" style="font-size: clamp(0.95rem, 3.5vw, 1.3rem); color: #5856d6;">{{ total_dias }}</div>
+                <div class="text-muted" style="font-size: 0.68rem; text-transform: uppercase;">Dias con Ventas</div>
+            </div>
+            <div class="col-4">
+                <div class="fw-bold" style="font-size: clamp(0.95rem, 3.5vw, 1.3rem); color: #007aff;">${{ '{:,}'.format((total_general / total_dias) | int) }}</div>
+                <div class="text-muted" style="font-size: 0.68rem; text-transform: uppercase;">Promedio/Dia</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de dias (carpetas) -->
+{% for dia in dias %}
+<div class="tile mb-2" style="padding: 0; overflow: hidden; cursor: pointer;"
+     onclick="window.location.href='{{ url_for('registros.detalle_dia', codigo=stand.codigo_acceso, fecha=dia.fecha) }}'">
+    <div class="d-flex align-items-center" style="padding: 0.75rem 1rem;">
+        <!-- Icono carpeta -->
+        <div class="me-3 d-flex align-items-center justify-content-center flex-shrink-0"
+             style="width: 50px; height: 50px; border-radius: 14px; background: linear-gradient(135deg, #ff9500, #ffcc00);">
+            <i class="bi bi-folder-fill text-white" style="font-size: 1.4rem;"></i>
+        </div>
+        <!-- Info del dia -->
+        <div class="flex-grow-1">
+            <div class="fw-bold" style="font-size: 0.95rem;">{{ dia.fecha_formato }}</div>
+            <div class="d-flex gap-2 flex-wrap" style="font-size: 0.75rem;">
+                <span class="text-muted"><i class="bi bi-receipt"></i> {{ dia.total_ventas }} {{ 'venta' if dia.total_ventas == 1 else 'ventas' }}</span>
+                {% if dia.pendiente > 0 %}
+                <span class="text-danger"><i class="bi bi-exclamation-circle"></i> ${{ '{:,}'.format(dia.pendiente) }} pend.</span>
+                {% endif %}
+            </div>
+        </div>
+        <!-- Total del dia -->
+        <div class="text-end flex-shrink-0 ms-2">
+            <div class="fw-bold text-success" style="font-size: 1.1rem;">${{ '{:,}'.format(dia.total_recaudado) }}</div>
+            <div class="d-flex gap-1 justify-content-end">
+                <a href="{{ url_for('registros.exportar_dia_excel', codigo=stand.codigo_acceso, fecha=dia.fecha) }}"
+                   class="btn btn-sm btn-outline-success" style="border-radius: 8px; font-size: 0.65rem; padding: 0.15rem 0.4rem;"
+                   onclick="event.stopPropagation();">
+                    <i class="bi bi-download"></i> Excel
+                </a>
+            </div>
+        </div>
+        <i class="bi bi-chevron-right text-muted ms-2"></i>
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="tile text-center py-5">
+    <div class="d-flex flex-column align-items-center">
+        <div class="mb-3 d-flex align-items-center justify-content-center"
+             style="width: 80px; height: 80px; border-radius: 20px; background: linear-gradient(135deg, #e0e0e0, #c0c0c0);">
+            <i class="bi bi-folder text-white" style="font-size: 2.5rem;"></i>
+        </div>
+        <p class="text-muted mb-1">No hay registros aun.</p>
+        <small class="text-muted">Los registros apareceran aqui cuando se realicen ventas.</small>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

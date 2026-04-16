@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Stand Creado - {{ stand.nombre }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-3">
+    <div class="col-md-5">
+        <div class="tile text-center" style="padding: 2.5rem 1.5rem;">
+            <div style="width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, #34c759, #30d158); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
+                <i class="bi bi-check-lg text-white" style="font-size: 2rem;"></i>
+            </div>
+            <h4 class="fw-bold">Stand Creado!</h4>
+            <p class="text-muted">{{ stand.nombre }}</p>
+
+            <div class="tile mt-3 mb-3" style="background: #fff8e1; border: 2px solid #ffe082; padding: 1.5rem;">
+                <p class="small text-muted mb-1">Tu Codigo de Acceso</p>
+                <p class="display-5 fw-bold mb-0 font-monospace" style="letter-spacing: 0.15em;">{{ stand.codigo_acceso }}</p>
+                <p class="small text-muted mt-2 mb-0">Guarda este codigo para acceder a tu stand</p>
+            </div>
+
+            <div class="d-grid gap-2">
+                <a href="{{ url_for('stand.dashboard', codigo=stand.codigo_acceso) }}" class="btn btn-primary btn-lg" style="border-radius: 14px;">
+                    <i class="bi bi-arrow-right-circle"></i> Ir al Stand
+                </a>
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary" style="border-radius: 14px;">
+                    <i class="bi bi-house"></i> Inicio
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

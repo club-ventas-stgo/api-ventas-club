@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Registro {{ fecha }} - {{ stand.nombre }}{% endblock %}
+
+{% block nav_items %}
+<a class="nav-link text-white py-0" href="{{ url_for('registros.index', codigo=stand.codigo_acceso) }}">
+    <i class="bi bi-arrow-left"></i> Registros
+</a>
+{% endblock %}
+
+{% block content %}
+{% if resumen %}
+<!-- Encabezado del dia -->
+<div class="tile mb-3" style="padding: 0; overflow: hidden;">
+    <div style="background: linear-gradient(135deg, #ff9500, #ffcc00); color: white; padding: 0.75rem 1rem;"
+         class="d-flex justify-content-between align-items-center">
+        <div>
+            <i class="bi bi-calendar3"></i>
+            <strong>{{ resumen.fecha_formato }}</strong>
+        </div>
+        <a href="{{ url_for('registros.exportar_dia_excel', codigo=stand.codigo_acceso, fecha=fecha) }}"
+           class="btn btn-sm btn-light fw-semibold" style="border-radius: 10px;">
+            <i class="bi bi-file-earmark-excel text-success"></i> Exportar Excel
+        </a>
+    </div>
+</div>
+
+<!-- Stats del dia -->
+<div class="row g-2 mb-3">
+    <div class="col-4">
+        <div class="tile stat-tile" style="background: linear-gradient(135deg, #34c759, #30d158); color: white;">
+            <div class="stat-value" style="font-size: clamp(0.9rem, 4vw, 1.6rem);">${{ '{:,}'.format(resumen.total_recaudado) }}</div>
+            <div class="stat-label">Recaudado</div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="tile stat-tile" style="background: linear-gradient(135deg, #007aff, #5856d6); color: white;">
+            <div class="stat-value">{{ resumen.total_ventas }}</div>
+            <div class="stat-label">Ventas</div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="tile stat-tile" style="background: linear-gradient(135deg, {% if resumen.total_pendiente_pago > 0 %}#ff3b30, #ff6b6b{% else %}#34c759, #30d158{% endif %}); color: white;">
+            <div class="stat-value" style="font-size: clamp(0.9rem, 4vw, 1.6rem);">${{ '{:,}'.format(resumen.total_pendiente_pago) }}</div>
+            <div class="stat-label">Por Cobrar</div>
+        </div>
+    </div>
+</div>
+
+<!-- Desglose metodos de pago -->
+<div class="tile mb-3" style="padding: 0; overflow: hidden;">
+    <div style="background: linear-gradient(135deg, #5856d6, #007aff); color: white; padding: 0.5rem 0.75rem;">
+        <strong class="small"><i class="bi bi-credit-card"></i> Metodos de Pago</strong>
+    </div>
+    <div style="padding: 0.75rem 1rem;">
+        <div class="row g-2">
+            <div class="col-6">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center justify-content-center flex-shrink-0"
+                         style="width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #34c759, #30d158);">
+                        <i class="bi bi-cash text-white"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold" style="font-size: 0.9rem;">${{ '{:,}'.format(resumen.monto_efectivo) }}</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">{{ resumen.ventas_efectivo }} en efectivo</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center justify-content-center flex-shrink-0"
+                         style="width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #5ac8fa, #0a84ff);">
+                        <i class="bi bi-phone text-white"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold" style="font-size: 0.9rem;">${{ '{:,}'.format(resumen.monto_transferencia) }}</div>
+                        <div class="text-muted" style="font-size: 0.7rem;">{{ resumen.ventas_transferencia }} transf.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estado de pagos y entregas -->
+<div class="row g-2 mb-3">
+    <div class="col-6">
+        <div class="tile" style="padding: 0; overflow: hidden;">
+            <div style="background: linear-gradient(135deg, #34c759, #30d158); color: white; padding: 0.4rem 0.75rem;">
+                <strong class="small"><i class="bi bi-wallet2"></i> Estado Pagos</strong>
+            </div>
+            <div style="padding: 0.6rem 0.75rem;">
+                <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
+                    <span><span class="badge bg-success" style="border-radius: 6px; font-size: 0.65rem;">Pagado</span></span>
+                    <strong>{{ resumen.pagadas }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
+                    <span><span class="badge bg-warning text-dark" style="border-radius: 6px; font-size: 0.65rem;">Parcial</span></span>
+                    <strong>{{ resumen.parciales }}</strong>
+                </div>
+                <div class="d-flex justify-content-between" style="font-size: 0.8rem;">
+                    <span><span class="badge bg-danger" style="border-radius: 6px; font-size: 0.65rem;">Pendiente</span></span>
+                    <strong>{{ resumen.pago_pendiente }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="tile" style="padding: 0; overflow: hidden;">
+            <div style="background: linear-gradient(135deg, #5ac8fa, #0a84ff); color: white; padding: 0.4rem 0.75rem;">
+                <strong class="small"><i class="bi bi-truck"></i> Estado Entregas</strong>
+            </div>
+            <div style="padding: 0.6rem 0.75rem;">
+                <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
+                    <span><span class="badge bg-success" style="border-radius: 6px; font-size: 0.65rem;">Entregado</span></span>
+                    <strong>{{ resumen.entregadas }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
+                    <span><span class="badge bg-info" style="border-radius: 6px; font-size: 0.65rem;">Listo</span></span>
+                    <strong>{{ resumen.listas }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-1" style="font-size: 0.8rem;">
+                    <span><span class="badge bg-warning text-dark" style="border-radius: 6px; font-size: 0.65rem;">En Prep.</span></span>
+                    <strong>{{ resumen.en_prep }}</strong>
+                </div>
+                <div class="d-flex justify-content-between" style="font-size: 0.8rem;">
+                    <span><span class="badge bg-secondary" style="border-radius: 6px; font-size: 0.65rem;">Pendiente</span></span>
+                    <strong>{{ resumen.pendientes_entrega }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Productos mas vendidos -->
+{% if resumen.productos_ranking %}
+<div class="tile mb-3" style="padding: 0; overflow: hidden;">
+    <div style="background: linear-gradient(135deg, #ff9500, #ffcc00); color: white; padding: 0.5rem 0.75rem;">
+        <strong class="small"><i class="bi bi-trophy"></i> Productos del Dia</strong>
+    </div>
+    <div style="padding: 0;">
+        {% for nombre, datos in resumen.productos_ranking %}
+        <div class="d-flex justify-content-between align-items-center" style="padding: 0.5rem 1rem; border-bottom: 1px solid #f0f0f0; {% if loop.first %}background: #fff8e1;{% endif %}">
+            <div class="d-flex align-items-center gap-2">
+                {% if loop.first %}
+                <span style="font-size: 1.1rem;">1</span>
+                {% else %}
+                <span class="text-muted" style="font-size: 0.85rem; width: 20px; text-align: center;">{{ loop.index }}</span>
+                {% endif %}
+                <div>
+                    <div class="fw-semibold" style="font-size: 0.85rem;">{{ nombre }}</div>
+                    <div class="text-muted" style="font-size: 0.7rem;">{{ datos.cantidad }} {{ 'unidad' if datos.cantidad == 1 else 'unidades' }}</div>
+                </div>
+            </div>
+            <strong class="text-success" style="font-size: 0.9rem;">${{ '{:,}'.format(datos.total) }}</strong>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Listado de ventas del dia -->
+<div class="tile mb-3" style="padding: 0; overflow: hidden;">
+    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); color: white; padding: 0.5rem 0.75rem;">
+        <strong class="small"><i class="bi bi-receipt"></i> Detalle de Ventas</strong>
+    </div>
+    {% for v in resumen.ventas %}
+    <a href="{{ url_for('ventas.detalle', codigo=stand.codigo_acceso, venta_id=v.id) }}"
+       class="d-block text-decoration-none venta-item estado-{{ v.estado_entrega }}">
+        <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <strong>#{{ v.numero_orden }}</strong>
+                    {% if v.cliente_nombre %}
+                    <small class="text-muted">{{ v.cliente_nombre }}</small>
+                    {% endif %}
+                    <small class="text-muted">{{ v.created_at.strftime('%H:%M') }}</small>
+                </div>
+                <div style="font-size: 0.78rem;">
+                    {% for d in v.detalles %}
+                    <span class="text-muted">{{ d.cantidad }}x {{ d.nombre_producto }}{% if not loop.last %}, {% endif %}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="text-end flex-shrink-0 ms-2">
+                <strong>${{ '{:,}'.format(v.total_final) }}</strong>
+                <div>
+                    {% if v.estado_pago == 'pagado' %}
+                    <span class="badge bg-success" style="font-size:0.6rem; border-radius: 6px;">Pagado</span>
+                    {% elif v.estado_pago == 'parcial' %}
+                    <span class="badge bg-warning text-dark" style="font-size:0.6rem; border-radius: 6px;">Parcial</span>
+                    {% else %}
+                    <span class="badge bg-danger" style="font-size:0.6rem; border-radius: 6px;">Pend.</span>
+                    {% endif %}
+                    {% if v.metodo_pago == 'efectivo' %}
+                    <span class="badge bg-secondary" style="font-size:0.6rem; border-radius: 6px;"><i class="bi bi-cash"></i></span>
+                    {% else %}
+                    <span class="badge bg-info" style="font-size:0.6rem; border-radius: 6px;"><i class="bi bi-phone"></i></span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="tile text-center py-5">
+    <div class="d-flex flex-column align-items-center">
+        <div class="mb-3 d-flex align-items-center justify-content-center"
+             style="width: 80px; height: 80px; border-radius: 20px; background: linear-gradient(135deg, #e0e0e0, #c0c0c0);">
+            <i class="bi bi-calendar-x text-white" style="font-size: 2.5rem;"></i>
+        </div>
+        <p class="text-muted mb-1">No hay registros para esta fecha.</p>
+        <a href="{{ url_for('registros.index', codigo=stand.codigo_acceso) }}" class="btn btn-sm btn-primary mt-2" style="border-radius: 10px;">
+            <i class="bi bi-arrow-left"></i> Volver a Registros
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

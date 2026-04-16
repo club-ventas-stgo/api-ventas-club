@@ -1,0 +1,586 @@
+:root {
+    --tile-radius: 18px;
+    --tile-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --tile-shadow-hover: 0 6px 24px rgba(0,0,0,0.15);
+    --bg: #f0f2f5;
+    --tile-bg: #ffffff;
+    --nav-height: 48px;
+}
+
+* {
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+}
+
+body {
+    background-color: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100dvh;
+    overflow-x: hidden;
+}
+
+/* ===== NAVBAR ===== */
+.navbar-custom {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    padding: 0.4rem 0;
+    height: var(--nav-height);
+    z-index: 1030;
+}
+
+.navbar-custom .navbar-brand {
+    font-size: 1rem;
+    padding: 0;
+}
+
+.navbar-custom .nav-link {
+    font-size: 0.85rem;
+    padding: 0.2rem 0;
+}
+
+/* ===== TILES ===== */
+.tile {
+    background: var(--tile-bg);
+    border-radius: var(--tile-radius);
+    box-shadow: var(--tile-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+    height: 100%;
+}
+
+.tile:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--tile-shadow-hover);
+}
+
+.tile-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    height: 100%;
+}
+
+.tile-link:hover { color: inherit; }
+
+.tile-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    margin: 0 auto 0.5rem;
+    flex-shrink: 0;
+}
+
+.tile-new {
+    border: 3px dashed #ced4da;
+    background: transparent;
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    min-height: 200px;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.tile-new:hover {
+    border-color: #0d6efd;
+    background: rgba(13, 110, 253, 0.03);
+    transform: none;
+    box-shadow: none;
+}
+
+/* Stand tile on index */
+.stand-tile {
+    min-height: 200px;
+    position: relative;
+}
+
+.stand-tile-img {
+    width: 100%;
+    height: 110px;
+    object-fit: cover;
+    border-radius: var(--tile-radius) var(--tile-radius) 0 0;
+}
+
+.stand-tile-placeholder {
+    width: 100%;
+    height: 110px;
+    border-radius: var(--tile-radius) var(--tile-radius) 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+}
+
+.stand-tile-body {
+    padding: 0.75rem;
+}
+
+.stand-tile-code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    color: #6c757d;
+}
+
+/* ===== DASHBOARD TILES ===== */
+.dash-tile {
+    padding: 1.25rem;
+    text-align: center;
+    min-height: 130px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.dash-tile .tile-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.4rem;
+    margin-bottom: 0.4rem;
+}
+
+.dash-tile h6 {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.dash-tile small {
+    color: #8e8e93;
+    font-size: 0.75rem;
+}
+
+/* ===== STAT TILES ===== */
+.stat-tile {
+    text-align: center;
+    padding: 0.75rem 0.5rem;
+}
+
+.stat-tile .stat-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.1;
+    word-break: break-all;
+}
+
+.stat-tile .stat-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.85;
+    margin-top: 2px;
+}
+
+/* ===== FINANCE TILE ===== */
+.finance-tile {
+    padding: 1rem;
+}
+
+.finance-row {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+    gap: 0.5rem;
+}
+
+.finance-item {
+    flex: 1;
+    min-width: 0;
+}
+
+.finance-item .finance-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    word-break: break-all;
+}
+
+.finance-item .finance-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: #8e8e93;
+}
+
+.profit-positive { color: #34c759; }
+.profit-negative { color: #ff3b30; }
+
+/* ===== PRODUCT BUTTONS (NUEVA VENTA) ===== */
+.producto-btn {
+    border-radius: 14px;
+    border-width: 2px !important;
+    min-height: 85px;
+    font-size: 0.9rem;
+    user-select: none;
+    transition: all 0.1s ease;
+    position: relative;
+    padding: 0.4rem !important;
+}
+
+.producto-btn:active {
+    transform: scale(0.93);
+    background-color: var(--bs-primary) !important;
+    color: white !important;
+}
+
+.producto-btn .badge-qty {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    font-size: 0.8rem;
+    min-width: 22px;
+    border-radius: 50%;
+    z-index: 1;
+}
+
+.producto-btn img {
+    width: 42px;
+    height: 42px;
+    object-fit: cover;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+/* Cart summary */
+#resumen-sticky {
+    position: sticky;
+    top: calc(var(--nav-height) + 8px);
+    z-index: 10;
+}
+
+.btn-qty {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* ===== DAY GROUPS ===== */
+.day-group {
+    border-radius: var(--tile-radius);
+    overflow: hidden;
+    box-shadow: var(--tile-shadow);
+    background: var(--tile-bg);
+    margin-bottom: 1rem;
+}
+
+.day-group-header {
+    cursor: pointer;
+    user-select: none;
+    padding: 0.6rem 1rem;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.day-group-header:hover { background: #e9ecef; }
+
+.day-group-header .bi-chevron-down {
+    transition: transform 0.2s ease;
+}
+
+.day-group-header.collapsed .bi-chevron-down {
+    transform: rotate(-90deg);
+}
+
+/* Sale cards */
+.venta-item {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: background 0.15s;
+}
+
+.venta-item:last-child { border-bottom: none; }
+.venta-item:hover { background: #f8f9fa; color: inherit; }
+
+.venta-item.estado-pendiente { border-left: 4px solid #ff3b30; }
+.venta-item.estado-en_preparacion { border-left: 4px solid #ff9500; }
+.venta-item.estado-listo { border-left: 4px solid #5ac8fa; }
+.venta-item.estado-entregado { border-left: 4px solid #34c759; }
+
+/* ===== FAB ===== */
+.fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    z-index: 1000;
+    border: none;
+}
+
+/* ===== COCINA ===== */
+.cocina-card {
+    border-radius: var(--tile-radius) !important;
+    border-width: 3px !important;
+}
+
+.cocina-card .card-header {
+    border-radius: calc(var(--tile-radius) - 3px) calc(var(--tile-radius) - 3px) 0 0 !important;
+}
+
+.cocina-card .btn {
+    border-radius: 12px;
+    padding: 0.6rem;
+    font-weight: 600;
+}
+
+/* ===== MODALS ===== */
+.modal-content {
+    border-radius: var(--tile-radius);
+}
+
+/* ===== ACCESS CODE INPUT ===== */
+.code-input {
+    border-radius: 12px;
+    text-transform: uppercase;
+    text-align: center;
+    font-family: monospace;
+    font-size: 1.1rem;
+    letter-spacing: 0.15em;
+}
+
+/* ===== IMAGES ===== */
+img {
+    image-rendering: auto;
+}
+
+.tile img,
+.producto-btn img {
+    object-fit: cover;
+    display: block;
+}
+
+/* ===== ALERTS ===== */
+.alert {
+    border-radius: 12px;
+    font-size: 0.88rem;
+}
+
+/* ===== TABLE RESPONSIVE ===== */
+.table-responsive {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ===== FILTERS ===== */
+.filter-bar .form-select {
+    font-size: 0.82rem;
+}
+
+/* ===== RESPONSIVE: TABLETS (768px) ===== */
+@media (max-width: 768px) {
+    .stat-tile .stat-value { font-size: 1.4rem; }
+    .finance-item .finance-value { font-size: 1rem; }
+    .dash-tile { min-height: 120px; padding: 1rem; }
+    .dash-tile .tile-icon { width: 44px; height: 44px; font-size: 1.3rem; }
+    .dash-tile h6 { font-size: 0.85rem; }
+}
+
+/* ===== RESPONSIVE: PHONES (576px) ===== */
+@media (max-width: 576px) {
+    :root {
+        --tile-radius: 14px;
+        --nav-height: 44px;
+    }
+
+    .navbar-custom {
+        padding: 0.3rem 0;
+    }
+
+    .navbar-custom .navbar-brand {
+        font-size: 0.9rem;
+    }
+
+    .navbar-custom .nav-link,
+    .navbar-custom .navbar-text {
+        font-size: 0.78rem;
+    }
+
+    main.container-fluid {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+        padding-bottom: 5rem;
+    }
+
+    .stat-tile .stat-value { font-size: 1.15rem; }
+    .stat-tile { padding: 0.5rem 0.25rem; }
+    .stat-tile .stat-label { font-size: 0.6rem; }
+
+    .dash-tile {
+        min-height: 100px;
+        padding: 0.75rem 0.5rem;
+    }
+
+    .dash-tile .tile-icon {
+        width: 38px;
+        height: 38px;
+        font-size: 1.1rem;
+        margin-bottom: 0.3rem;
+        border-radius: 10px;
+    }
+
+    .dash-tile h6 { font-size: 0.78rem; }
+    .dash-tile small { font-size: 0.65rem; }
+
+    .stand-tile { min-height: 170px; }
+    .stand-tile-img,
+    .stand-tile-placeholder { height: 90px; }
+    .stand-tile-body { padding: 0.5rem; }
+    .stand-tile-body h6 { font-size: 0.82rem; }
+    .stand-tile-code { font-size: 0.68rem; }
+
+    .tile-new { min-height: 170px; }
+
+    .finance-tile { padding: 0.75rem; }
+    .finance-item .finance-value { font-size: 0.95rem; }
+    .finance-item .finance-label { font-size: 0.62rem; }
+
+    /* Product buttons */
+    .producto-btn {
+        min-height: 75px;
+        border-radius: 12px;
+    }
+
+    .producto-btn img {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+    }
+
+    .producto-btn small { font-size: 0.68rem !important; }
+
+    /* Cart */
+    #resumen-sticky {
+        top: calc(var(--nav-height) + 4px);
+    }
+
+    .btn-qty {
+        width: 30px;
+        height: 30px;
+        font-size: 1rem;
+    }
+
+    /* Cocina */
+    .cocina-card {
+        border-radius: 14px !important;
+    }
+
+    .cocina-card .card-header {
+        border-radius: 11px 11px 0 0 !important;
+    }
+
+    /* Modals */
+    .modal-content {
+        border-radius: 14px;
+        margin: 0.5rem;
+    }
+
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+
+    /* FAB */
+    .fab {
+        bottom: 20px;
+        right: 16px;
+        width: 52px;
+        height: 52px;
+        font-size: 1.3rem;
+    }
+
+    /* Day groups */
+    .day-group { border-radius: 14px; }
+
+    .day-group-header {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.88rem;
+    }
+
+    .venta-item {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.88rem;
+    }
+
+    /* Registros */
+    .registro-dia-card { font-size: 0.88rem; }
+}
+
+/* ===== RESPONSIVE: VERY SMALL PHONES (360px) ===== */
+@media (max-width: 360px) {
+    .stat-tile .stat-value { font-size: 1rem; }
+    .stat-tile .stat-label { font-size: 0.55rem; }
+
+    .finance-item .finance-value { font-size: 0.85rem; }
+    .finance-item .finance-label { font-size: 0.58rem; }
+
+    .dash-tile {
+        min-height: 90px;
+        padding: 0.6rem 0.4rem;
+    }
+
+    .dash-tile .tile-icon {
+        width: 34px;
+        height: 34px;
+        font-size: 1rem;
+        border-radius: 8px;
+    }
+
+    .dash-tile h6 { font-size: 0.72rem; }
+
+    .producto-btn {
+        min-height: 68px;
+    }
+
+    .producto-btn img {
+        width: 32px;
+        height: 32px;
+    }
+
+    .producto-btn small { font-size: 0.62rem !important; }
+
+    .btn-qty {
+        width: 28px;
+        height: 28px;
+        font-size: 0.9rem;
+    }
+
+    main.container-fluid {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+}
+
+/* ===== iOS SAFE AREAS ===== */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .fab {
+        bottom: calc(20px + env(safe-area-inset-bottom));
+    }
+
+    main.container-fluid {
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    }
+}
