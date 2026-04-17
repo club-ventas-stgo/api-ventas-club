@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Sesion {{ sesion.fecha.strftime('%d/%m/%Y') }}{% endblock %}
+
+{% block nav_items %}
+<a class="nav-link text-white py-0" href="{{ url_for('sesiones.lista', codigo=stand.codigo_acceso) }}">
+    <i class="bi bi-arrow-left"></i> Sesiones
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="tile mb-3" style="padding: 0; overflow: hidden;">
+    <div style="background: linear-gradient(135deg, #5856d6, #007aff); color: white; padding: 0.6rem 1rem;" class="d-flex justify-content-between align-items-center">
+        <div>
+            <strong><i class="bi bi-calendar-event"></i> {{ sesion.fecha.strftime('%d/%m/%Y') }}</strong>
+            {% if sesion.nombre %}
+            <span class="ms-2 small">{{ sesion.nombre }}</span>
+            {% endif %}
+        </div>
+        {% if sesion.estado == 'abierta' %}
+        <span class="badge bg-success" style="border-radius: 8px;">Abierta</span>
+        {% elif sesion.estado == 'cerrada' %}
+        <span class="badge bg-secondary" style="border-radius: 8px;">Cerrada</span>
+        {% else %}
+        <span class="badge bg-info" style="border-radius: 8px;">Programada</span>
+        {% endif %}
+    </div>
+
+    <!-- Stats -->
+    <div class="d-flex justify-content-around text-center" style="padding: 0.6rem;">
+        <div>
+            <div class="fw-bold">{{ total_ventas }}</div>
+            <small class="text-muted" style="font-size: 0.7rem;">VENTAS</small>
+        </div>
+        <div>
+            <div class="fw-bold text-success">${{ '{:,}'.format(total_recaudado) }}</div>
+            <small class="text-muted" style="font-size: 0.7rem;">RECAUDADO</small>
+        </div>
+        <div>
+            <div class="fw-bold">${{ '{:,}'.format(total_pagado) }}</div>
+            <small class="text-muted" style="font-size: 0.7rem;">PAGADO</small>
+        </div>
+    </div>
+
+    <!-- Estado buttons -->
+    <div style="padding: 0 0.75rem 0.6rem;" class="d-flex gap-2">
+        {% if sesion.estado == 'programada' %}
+        <form method="POST" action="{{ url_for('sesiones.cambiar_estado', codigo=stand.codigo_acceso, sesion_id=sesion.id) }}" class="flex-fill">
+            <input type="hidden" name="estado" value="abierta">
+            <button type="submit" class="btn btn-success btn-sm w-100" style="border-radius: 10px;">
+                <i class="bi bi-play-fill"></i> Abrir Sesion
+            </button>
+        </form>
+        {% elif sesion.estado == 'abierta' %}
+        <a href="{{ url_for('ventas.nueva', codigo=stand.codigo_acceso, sesion_id=sesion.id) }}" class="btn btn-success btn-sm flex-fill" style="border-radius: 10px;">
+            <i class="bi bi-cart-plus"></i> Nueva Venta
+        </a>
+        <form method="POST" action="{{ url_for('sesiones.cambiar_estado', codigo=stand.codigo_acceso, sesion_id=sesion.id) }}" class="flex-fill">
+            <input type="hidden" name="estado" value="cerrada">
+            <button type="submit" class="btn btn-outline-danger btn-sm w-100" style="border-radius: 10px;">
+                <i class="bi bi-stop-fill"></i> Cerrar
+            </button>
+        </form>
+        {% else %}
+        <form method="POST" action="{{ url_for('sesiones.cambiar_estado', codigo=stand.codigo_acceso, sesion_id=sesion.id) }}" class="flex-fill">
+            <input type="hidden" name="estado" value="abierta">
+            <button type="submit" class="btn btn-outline-success btn-sm w-100" style="border-radius: 10px;">
+                <i class="bi bi-arrow-counterclockwise"></i> Reabrir
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Integrantes y roles -->
+<div class="tile mb-3" style="padding: 0; overflow: hidden;">
+    <div style="background: #f8f9fa; padding: 0.5rem 0.75rem; border-bottom: 1px solid #e9ecef;" class="d-flex justify-content-between align-items-center"
+         data-bs-toggle="collapse" data-bs-target="#roles-collapse" role="button">
+        <strong class="small"><i class="bi bi-people"></i> Equipo ({{ sesion.integrantes|length }})</strong>
+        <i class="bi bi-chevron-down"></i>
+    </div>
+    <div class="collapse show" id="roles-collapse">
+        {% if sesion.integrantes %}
+        <div style="padding: 0.5rem 0.75rem;">
+            {% set roles = {'cocina': [], 'atencion': [], 'entrega': []} %}
+            {% for si in sesion.integrantes %}
+                {% if si.rol in roles %}
+                    {% if roles[si.rol].append(si.integrante.nombre) %}{% endif %}
+                {% endif %}
+            {% endfor %}
+
+            {% if roles['cocina'] %}
+            <div class="mb-1">
+                <span class="badge bg-danger" style="border-radius: 6px; font-size: 0.68rem;"><i class="bi bi-fire"></i> Cocina</span>
+                <small>{{ roles['cocina']|join(', ') }}</small>
+            </div>
+            {% endif %}
+            {% if roles['atencion'] %}
+            <div class="mb-1">
+                <span class="badge bg-primary" style="border-radius: 6px; font-size: 0.68rem;"><i class="bi bi-person"></i> Atencion</span>
+                <small>{{ roles['atencion']|join(', ') }}</small>
+            </div>
+            {% endif %}
+            {% if roles['entrega'] %}
+            <div class="mb-1">
+                <span class="badge bg-success" style="border-radius: 6px; font-size: 0.68rem;"><i class="bi bi-truck"></i> Entrega</span>
+                <small>{{ roles['entrega']|join(', ') }}</small>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div style="padding: 0.5rem 0.75rem; border-top: 1px solid #f0f0f0;">
+            <button class="btn btn-sm btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#modal-roles" style="border-radius: 10px;">
+                <i class="bi bi-pencil"></i> Asignar Roles
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Ventas de esta sesion -->
+<h6 class="fw-bold mb-2"><i class="bi bi-receipt"></i> Ventas de esta sesion</h6>
+{% if ventas %}
+<div class="day-group">
+    {% for v in ventas %}
+    <a href="{{ url_for('ventas.detalle', codigo=stand.codigo_acceso, venta_id=v.id) }}"
+       class="venta-item estado-{{ v.estado_entrega }}">
+        <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <strong>#{{ v.numero_orden }}</strong>
+                    {% if v.cliente_nombre %}
+                    <small class="text-muted">{{ v.cliente_nombre }}</small>
+                    {% endif %}
+                    <small class="text-muted">{{ v.created_at.strftime('%H:%M') }}</small>
+                </div>
+                <div style="font-size: 0.78rem;">
+                    {% for d in v.detalles %}
+                    <span class="text-muted">{{ d.cantidad }}x {{ d.nombre_producto }}{% if not loop.last %}, {% endif %}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="text-end flex-shrink-0 ms-2">
+                <strong>${{ '{:,}'.format(v.total_final) }}</strong>
+                <div>
+                    {% if v.estado_entrega == 'entregado' %}
+                    <i class="bi bi-check-circle-fill text-success"></i>
+                    {% endif %}
+                    {% if v.estado_pago == 'pagado' %}
+                    <span class="badge bg-success" style="font-size:0.6rem; border-radius: 6px;">Pagado</span>
+                    {% elif v.estado_pago == 'parcial' %}
+                    <span class="badge bg-warning text-dark" style="font-size:0.6rem; border-radius: 6px;">${{ '{:,}'.format(v.monto_pagado) }}</span>
+                    {% else %}
+                    <span class="badge bg-danger" style="font-size:0.6rem; border-radius: 6px;">Pend.</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="tile text-center py-4">
+    <p class="text-muted mb-0 small">No hay ventas en esta sesion.</p>
+</div>
+{% endif %}
+
+<!-- Modal asignar roles -->
+<div class="modal fade" id="modal-roles" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('sesiones.gestionar_integrantes', codigo=stand.codigo_acceso, sesion_id=sesion.id) }}">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title fw-bold"><i class="bi bi-people"></i> Asignar Roles</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {% if integrantes_disponibles %}
+                    {% set asignaciones = {} %}
+                    {% for si in sesion.integrantes %}
+                        {% if si.integrante_id not in asignaciones %}
+                            {% if asignaciones.update({si.integrante_id: []}) %}{% endif %}
+                        {% endif %}
+                        {% if asignaciones[si.integrante_id].append(si.rol) %}{% endif %}
+                    {% endfor %}
+
+                    {% for integ in integrantes_disponibles %}
+                    <div class="mb-3 pb-2 border-bottom">
+                        <strong class="small">{{ integ.nombre }}</strong>
+                        <div class="d-flex gap-2 mt-1">
+                            {% set roles_actuales = asignaciones.get(integ.id, []) %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="roles_{{ integ.id }}" value="cocina" id="r-{{ integ.id }}-c" {{ 'checked' if 'cocina' in roles_actuales }}>
+                                <label class="form-check-label small" for="r-{{ integ.id }}-c"><i class="bi bi-fire text-danger"></i> Cocina</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="roles_{{ integ.id }}" value="atencion" id="r-{{ integ.id }}-a" {{ 'checked' if 'atencion' in roles_actuales }}>
+                                <label class="form-check-label small" for="r-{{ integ.id }}-a"><i class="bi bi-person text-primary"></i> Atencion</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="roles_{{ integ.id }}" value="entrega" id="r-{{ integ.id }}-e" {{ 'checked' if 'entrega' in roles_actuales }}>
+                                <label class="form-check-label small" for="r-{{ integ.id }}-e"><i class="bi bi-truck text-success"></i> Entrega</label>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No hay integrantes activos. <a href="{{ url_for('stand.integrantes', codigo=stand.codigo_acceso) }}">Agregar integrantes</a></p>
+                    {% endif %}
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="submit" class="btn btn-primary w-100" style="border-radius: 12px;">
+                        <i class="bi bi-check-lg"></i> Guardar Roles
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

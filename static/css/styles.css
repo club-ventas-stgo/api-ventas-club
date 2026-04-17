@@ -574,6 +574,20 @@ img {
     }
 }
 
+/* ===== HERO ===== */
+.hero-tile {
+    border-radius: var(--tile-radius);
+}
+
+.hero-tile .code-input::placeholder {
+    color: rgba(255,255,255,0.5);
+}
+
+/* ===== PROGRESS BAR ===== */
+.progress {
+    background-color: #e9ecef;
+}
+
 /* ===== iOS SAFE AREAS ===== */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
     .fab {

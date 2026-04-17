@@ -16,8 +16,8 @@
     {% block navbar %}
     <nav class="navbar navbar-custom navbar-dark sticky-top">
         <div class="container-fluid px-3">
-            <a class="navbar-brand fw-bold" href="{{ url_for('main.index') }}">
-                <i class="bi bi-shop"></i> Ventas Club
+            <a class="navbar-brand fw-bold d-flex align-items-center gap-1" href="{{ url_for('main.index') }}">
+                <img src="{{ url_for('static', filename='img/logo-small.png') }}" alt="CO" style="width: 28px; height: 28px; border-radius: 6px;"> Ventas Club
             </a>
             {% block nav_items %}{% endblock %}
         </div>

@@ -138,6 +138,28 @@
         </a>
     </div>
     <div class="col-6 col-md-4">
+        <a href="{{ url_for('sesiones.lista', codigo=stand.codigo_acceso) }}" class="tile-link">
+            <div class="tile dash-tile">
+                <div class="tile-icon" style="background: linear-gradient(135deg, #5856d6, #af52de); color: white;">
+                    <i class="bi bi-calendar-event"></i>
+                </div>
+                <h6>Sesiones</h6>
+                <small>Jornadas de venta</small>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-4">
+        <a href="{{ url_for('stand.integrantes', codigo=stand.codigo_acceso) }}" class="tile-link">
+            <div class="tile dash-tile">
+                <div class="tile-icon" style="background: linear-gradient(135deg, #30d158, #34c759); color: white;">
+                    <i class="bi bi-people"></i>
+                </div>
+                <h6>Integrantes</h6>
+                <small>Equipo del club</small>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-4">
         <a href="{{ url_for('registros.index', codigo=stand.codigo_acceso) }}" class="tile-link">
             <div class="tile dash-tile">
                 <div class="tile-icon" style="background: linear-gradient(135deg, #ff9500, #ff6b00); color: white;">

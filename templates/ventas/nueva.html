@@ -10,6 +10,7 @@
 {% block content %}
 <form method="POST" id="form-venta">
     <input type="hidden" name="items" id="items-json">
+    {% if sesion_id %}<input type="hidden" name="sesion_id" value="{{ sesion_id }}">{% endif %}
 
     {% if promociones %}
     <div class="tile mb-2" style="padding: 0.5rem 0.75rem; background: #fff8e1; border: 1px solid #ffe082;">
@@ -112,10 +113,11 @@ function render() {
         return;
     }
 
-    let html = '', total = 0;
+    let html = '', total = 0, totalUnidades = 0;
     keys.forEach(id => {
         const item = items[id], sub = item.precio * item.cantidad;
         total += sub;
+        totalUnidades += item.cantidad;
         html += `
         <div class="d-flex align-items-center justify-content-between py-1 border-bottom">
             <div class="flex-grow-1 me-2">
@@ -129,6 +131,11 @@ function render() {
             </div>
         </div>`;
     });
+
+    html += `<div class="d-flex justify-content-between pt-1" style="font-size:0.75rem;">
+        <span class="text-muted">${keys.length} productos, ${totalUnidades} unidades</span>
+        <strong class="text-success">${fmt(total)}</strong>
+    </div>`;
 
     list.innerHTML = html;
     document.getElementById('total-display').textContent = fmt(total);

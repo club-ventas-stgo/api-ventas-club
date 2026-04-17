@@ -16,6 +16,8 @@ class Stand(db.Model):
     productos = db.relationship('Producto', backref='stand', lazy='dynamic')
     promociones = db.relationship('Promocion', backref='stand', lazy='dynamic')
     ventas = db.relationship('Venta', backref='stand', lazy='dynamic')
+    integrantes = db.relationship('Integrante', backref='stand', lazy='dynamic')
+    sesiones = db.relationship('SesionVenta', backref='stand', lazy='dynamic')
 
 
 class Producto(db.Model):
@@ -46,6 +48,7 @@ class Venta(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     stand_id = db.Column(db.Integer, db.ForeignKey('stands.id'), nullable=False)
+    sesion_id = db.Column(db.Integer, db.ForeignKey('sesiones_venta.id'), nullable=True)
     numero_orden = db.Column(db.Integer, nullable=False)
     cliente_nombre = db.Column(db.String(100))
     metodo_pago = db.Column(db.String(20), default='efectivo')
@@ -70,3 +73,39 @@ class DetalleVenta(db.Model):
     cantidad = db.Column(db.Integer, nullable=False)
     precio_unitario = db.Column(db.Integer, nullable=False)
     subtotal = db.Column(db.Integer, nullable=False)
+
+
+class Integrante(db.Model):
+    __tablename__ = 'integrantes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    stand_id = db.Column(db.Integer, db.ForeignKey('stands.id'), nullable=False)
+    nombre = db.Column(db.String(100), nullable=False)
+    telefono = db.Column(db.String(20))
+    activo = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class SesionVenta(db.Model):
+    __tablename__ = 'sesiones_venta'
+
+    id = db.Column(db.Integer, primary_key=True)
+    stand_id = db.Column(db.Integer, db.ForeignKey('stands.id'), nullable=False)
+    fecha = db.Column(db.Date, nullable=False)
+    nombre = db.Column(db.String(100))
+    estado = db.Column(db.String(20), default='programada')
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    integrantes = db.relationship('SesionIntegrante', backref='sesion', lazy='select')
+    ventas = db.relationship('Venta', backref='sesion', lazy='dynamic')
+
+
+class SesionIntegrante(db.Model):
+    __tablename__ = 'sesion_integrantes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    sesion_id = db.Column(db.Integer, db.ForeignKey('sesiones_venta.id'), nullable=False)
+    integrante_id = db.Column(db.Integer, db.ForeignKey('integrantes.id'), nullable=False)
+    rol = db.Column(db.String(30), nullable=False)
+
+    integrante = db.relationship('Integrante', lazy='select')

@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from sqlalchemy import func
 from app import db
-from models import Stand, Producto, Promocion, Venta
+from models import Stand, Producto, Promocion, Venta, Integrante
 from routes.main import comprimir_imagen
 
 stand_bp = Blueprint('stand', __name__, url_prefix='/s')
@@ -186,3 +186,52 @@ def eliminar_promocion(codigo, promo_id):
     db.session.commit()
     flash(f'Promoción eliminada.', 'info')
     return redirect(url_for('stand.promociones', codigo=codigo))
+
+
+@stand_bp.route('/<codigo>/integrantes', methods=['GET', 'POST'])
+def integrantes(codigo):
+    stand = get_stand_or_404(codigo)
+
+    if request.method == 'POST':
+        nombre = request.form.get('nombre', '').strip()
+        telefono = request.form.get('telefono', '').strip()
+
+        if not nombre:
+            flash('El nombre es obligatorio.', 'danger')
+            return redirect(url_for('stand.integrantes', codigo=codigo))
+
+        integrante = Integrante(stand_id=stand.id, nombre=nombre, telefono=telefono or None)
+        db.session.add(integrante)
+        db.session.commit()
+        flash(f'Integrante "{nombre}" agregado.', 'success')
+        return redirect(url_for('stand.integrantes', codigo=codigo))
+
+    todos = stand.integrantes.order_by(Integrante.activo.desc(), Integrante.nombre).all()
+    return render_template('stand/integrantes.html', stand=stand, integrantes=todos)
+
+
+@stand_bp.route('/<codigo>/integrantes/<int:integrante_id>/editar', methods=['POST'])
+def editar_integrante(codigo, integrante_id):
+    stand = get_stand_or_404(codigo)
+    integrante = Integrante.query.filter_by(id=integrante_id, stand_id=stand.id).first_or_404()
+
+    nombre = request.form.get('nombre', '').strip()
+    telefono = request.form.get('telefono', '').strip()
+
+    if nombre:
+        integrante.nombre = nombre
+    integrante.telefono = telefono or None
+    db.session.commit()
+    flash(f'Integrante actualizado.', 'success')
+    return redirect(url_for('stand.integrantes', codigo=codigo))
+
+
+@stand_bp.route('/<codigo>/integrantes/<int:integrante_id>/toggle', methods=['POST'])
+def toggle_integrante(codigo, integrante_id):
+    stand = get_stand_or_404(codigo)
+    integrante = Integrante.query.filter_by(id=integrante_id, stand_id=stand.id).first_or_404()
+    integrante.activo = not integrante.activo
+    db.session.commit()
+    estado = "activado" if integrante.activo else "desactivado"
+    flash(f'Integrante "{integrante.nombre}" {estado}.', 'info')
+    return redirect(url_for('stand.integrantes', codigo=codigo))

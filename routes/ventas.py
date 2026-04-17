@@ -90,8 +90,10 @@ def nueva(codigo):
         except ValueError:
             total_final = total_original
 
+        sesion_id = request.form.get('sesion_id', type=int)
         venta = Venta(
             stand_id=stand.id,
+            sesion_id=sesion_id,
             numero_orden=siguiente_numero_orden(stand.id),
             cliente_nombre=cliente,
             metodo_pago=metodo_pago,
@@ -112,7 +114,8 @@ def nueva(codigo):
 
     productos = stand.productos.filter_by(activo=True).order_by(Producto.nombre).all()
     promociones = stand.promociones.filter_by(activa=True).all()
-    return render_template('ventas/nueva.html', stand=stand, productos=productos, promociones=promociones)
+    sesion_id = request.args.get('sesion_id', type=int)
+    return render_template('ventas/nueva.html', stand=stand, productos=productos, promociones=promociones, sesion_id=sesion_id)
 
 
 @ventas_bp.route('/<codigo>/ventas/<int:venta_id>', methods=['GET', 'POST'])
@@ -161,4 +164,25 @@ def cambiar_estado(codigo, venta_id):
     referer = request.form.get('redirect', '')
     if 'cocina' in referer:
         return redirect(url_for('cocina.panel', codigo=codigo))
+    return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+
+
+@ventas_bp.route('/<codigo>/ventas/<int:venta_id>/marcar-pagado', methods=['POST'])
+def marcar_pagado(codigo, venta_id):
+    stand = get_stand_or_404(codigo)
+    venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
+    venta.monto_pagado = venta.total_final
+    venta.estado_pago = 'pagado'
+    db.session.commit()
+    flash('Venta marcada como pagada.', 'success')
+    return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+
+
+@ventas_bp.route('/<codigo>/ventas/<int:venta_id>/marcar-entregado', methods=['POST'])
+def marcar_entregado(codigo, venta_id):
+    stand = get_stand_or_404(codigo)
+    venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
+    venta.estado_entrega = 'entregado'
+    db.session.commit()
+    flash('Venta marcada como entregada.', 'success')
     return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))

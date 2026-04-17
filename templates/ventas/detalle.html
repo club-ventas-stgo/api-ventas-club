@@ -8,6 +8,8 @@
 {% endblock %}
 
 {% block content %}
+{% set pago_pct = ((venta.monto_pagado / venta.total_final * 100) if venta.total_final > 0 else 0) | int %}
+
 <div class="row g-3">
     <!-- Order detail tile -->
     <div class="col-12 col-lg-7">
@@ -22,13 +24,69 @@
                 {% endif %}
                 <p class="mb-2 small text-muted"><i class="bi bi-credit-card"></i> {{ venta.metodo_pago | capitalize }}</p>
 
+                <!-- Status badges -->
+                <div class="d-flex gap-2 mb-2">
+                    {% if venta.estado_entrega == 'entregado' %}
+                    <span class="badge bg-success" style="border-radius: 8px; font-size: 0.75rem;"><i class="bi bi-check-circle-fill"></i> Entregado</span>
+                    {% elif venta.estado_entrega == 'listo' %}
+                    <span class="badge bg-info" style="border-radius: 8px; font-size: 0.75rem;"><i class="bi bi-bell-fill"></i> Listo</span>
+                    {% elif venta.estado_entrega == 'en_preparacion' %}
+                    <span class="badge bg-warning text-dark" style="border-radius: 8px; font-size: 0.75rem;"><i class="bi bi-fire"></i> En Preparacion</span>
+                    {% else %}
+                    <span class="badge bg-secondary" style="border-radius: 8px; font-size: 0.75rem;"><i class="bi bi-clock"></i> Pendiente</span>
+                    {% endif %}
+
+                    {% if venta.estado_pago == 'pagado' %}
+                    <span class="badge bg-success" style="border-radius: 8px; font-size: 0.75rem;"><i class="bi bi-check-circle-fill"></i> Pagado</span>
+                    {% elif venta.estado_pago == 'parcial' %}
+                    <span class="badge bg-warning text-dark" style="border-radius: 8px; font-size: 0.75rem;"><i class="bi bi-exclamation-circle"></i> Parcial</span>
+                    {% else %}
+                    <span class="badge bg-danger" style="border-radius: 8px; font-size: 0.75rem;"><i class="bi bi-x-circle"></i> Pago Pend.</span>
+                    {% endif %}
+                </div>
+
+                <!-- Payment progress bar -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted">Pagado: ${{ '{:,}'.format(venta.monto_pagado) }} / ${{ '{:,}'.format(venta.total_final) }}</small>
+                        <small class="fw-bold">{{ pago_pct }}%</small>
+                    </div>
+                    <div class="progress" style="height: 8px; border-radius: 4px;">
+                        <div class="progress-bar {{ 'bg-success' if pago_pct >= 100 else 'bg-warning' }}" style="width: {{ [pago_pct, 100] | min }}%; border-radius: 4px;"></div>
+                    </div>
+                    {% if venta.total_final > venta.monto_pagado %}
+                    <small class="text-danger">Falta: ${{ '{:,}'.format(venta.total_final - venta.monto_pagado) }}</small>
+                    {% endif %}
+                </div>
+
+                <!-- Quick action buttons -->
+                <div class="d-flex gap-2 mb-3">
+                    {% if venta.estado_pago != 'pagado' %}
+                    <form method="POST" action="{{ url_for('ventas.marcar_pagado', codigo=stand.codigo_acceso, venta_id=venta.id) }}" class="flex-fill">
+                        <button type="submit" class="btn btn-success btn-sm w-100" style="border-radius: 10px;">
+                            <i class="bi bi-cash-stack"></i> Marcar Pagado
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% if venta.estado_entrega != 'entregado' %}
+                    <form method="POST" action="{{ url_for('ventas.marcar_entregado', codigo=stand.codigo_acceso, venta_id=venta.id) }}" class="flex-fill">
+                        <button type="submit" class="btn btn-primary btn-sm w-100" style="border-radius: 10px;">
+                            <i class="bi bi-check2-all"></i> Marcar Entregado
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+
+                <!-- Products table -->
                 <div class="table-responsive">
                     <table class="table table-sm mb-0" style="font-size: 0.85rem;">
                         <thead>
                             <tr><th>Producto</th><th class="text-center">Cant.</th><th class="text-end">P.Unit</th><th class="text-end">Subt.</th></tr>
                         </thead>
                         <tbody>
+                            {% set total_unidades = namespace(val=0) %}
                             {% for d in venta.detalles %}
+                            {% set total_unidades.val = total_unidades.val + d.cantidad %}
                             <tr>
                                 <td>{{ d.nombre_producto }}</td>
                                 <td class="text-center">{{ d.cantidad }}</td>
@@ -38,12 +96,14 @@
                             {% endfor %}
                         </tbody>
                         <tfoot>
-                            <tr>
-                                <td colspan="3" class="text-end small text-muted">Calculado:</td>
-                                <td class="text-end">${{ '{:,}'.format(venta.total_original) }}</td>
+                            <tr class="text-muted">
+                                <td class="small">{{ venta.detalles|length }} productos</td>
+                                <td class="text-center small">{{ total_unidades.val }} uds</td>
+                                <td class="text-end small">Calc:</td>
+                                <td class="text-end small">${{ '{:,}'.format(venta.total_original) }}</td>
                             </tr>
                             <tr style="background: #e8f5e9;">
-                                <td colspan="3" class="text-end"><strong>Final:</strong></td>
+                                <td colspan="3" class="text-end"><strong>Total Final:</strong></td>
                                 <td class="text-end"><strong>${{ '{:,}'.format(venta.total_final) }}</strong></td>
                             </tr>
                         </tfoot>

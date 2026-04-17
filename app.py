@@ -33,12 +33,14 @@ def create_app():
     from routes.ventas import ventas_bp
     from routes.cocina import cocina_bp
     from routes.registros import registros_bp
+    from routes.sesiones import sesiones_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(stand_bp)
     app.register_blueprint(ventas_bp)
     app.register_blueprint(cocina_bp)
     app.register_blueprint(registros_bp)
+    app.register_blueprint(sesiones_bp)
 
     @app.route('/api/health')
     def health():
