@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Nueva Venta - {{ stand.nombre }}{% endblock %}
+{% block title %}Registrar Venta - {{ stand.nombre }}{% endblock %}
 
 {% block nav_items %}
 <a class="nav-link text-white py-0" href="{{ url_for('stand.dashboard', codigo=stand.codigo_acceso) }}">
@@ -29,6 +29,12 @@
     <input type="hidden" name="items" id="items-json">
     {% if sesion_id %}<input type="hidden" name="sesion_id" value="{{ sesion_id }}">{% endif %}
 
+    <!-- 1. Client info -->
+    <div class="tile mb-2" style="padding: 0.75rem;">
+        <label class="form-label small fw-bold mb-1"><i class="bi bi-person"></i> Cliente</label>
+        <input type="text" class="form-control" name="cliente_nombre" placeholder="Nombre del cliente" maxlength="100" style="border-radius: 10px;">
+    </div>
+
     {% if promociones %}
     <div class="tile mb-2" style="padding: 0.5rem 0.75rem; background: #fff8e1; border: 1px solid #ffe082;">
         <strong class="small"><i class="bi bi-tag-fill text-warning"></i> Promos:</strong>
@@ -38,22 +44,25 @@
     </div>
     {% endif %}
 
-    <!-- Product grid -->
+    <!-- 2. Product grid -->
     {% if productos %}
-    <div class="row g-2 mb-2">
-        {% for p in productos %}
-        <div class="col-4 col-sm-3 col-md-3 col-lg-2">
-            <button type="button" class="btn btn-outline-primary producto-btn w-100 h-100 d-flex flex-column align-items-center justify-content-center"
-                    data-id="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}">
-                {% if p.foto %}
-                <img src="{{ p.foto }}" class="mb-1">
-                {% endif %}
-                <small class="fw-bold lh-sm text-center" style="font-size: 0.72rem;">{{ p.nombre }}</small>
-                <span class="text-success fw-bold" style="font-size: 0.78rem;">${{ '{:,}'.format(p.precio) }}</span>
-                <span class="badge bg-danger rounded-pill badge-qty d-none" id="badge-{{ p.id }}">0</span>
-            </button>
+    <div class="tile mb-2" style="padding: 0.75rem;">
+        <label class="form-label small fw-bold mb-2"><i class="bi bi-box-seam"></i> Productos</label>
+        <div class="row g-2">
+            {% for p in productos %}
+            <div class="col-4 col-sm-3 col-md-3 col-lg-2">
+                <button type="button" class="btn btn-outline-primary producto-btn w-100 h-100 d-flex flex-column align-items-center justify-content-center"
+                        data-id="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}">
+                    {% if p.foto %}
+                    <img src="{{ p.foto }}" class="mb-1">
+                    {% endif %}
+                    <small class="fw-bold lh-sm text-center" style="font-size: 0.72rem;">{{ p.nombre }}</small>
+                    <span class="text-success fw-bold" style="font-size: 0.78rem;">${{ '{:,}'.format(p.precio) }}</span>
+                    <span class="badge bg-danger rounded-pill badge-qty d-none" id="badge-{{ p.id }}">0</span>
+                </button>
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
     {% else %}
     <div class="tile text-center py-4 mb-2">
@@ -62,47 +71,42 @@
     </div>
     {% endif %}
 
-    <!-- Order summary -->
+    <!-- 3. Order summary -->
     <div id="resumen-sticky">
         <div class="tile" style="padding: 0; overflow: hidden; border: 2px solid #34c759;">
             <div style="background: linear-gradient(135deg, #34c759, #30d158); color: white; padding: 0.5rem 0.75rem;" class="d-flex justify-content-between align-items-center">
                 <strong><i class="bi bi-receipt"></i> Pedido</strong>
                 <span id="total-display" class="fs-5 fw-bold">$0</span>
             </div>
-            <div id="items-list" style="max-height: 180px; overflow-y: auto; padding: 0.5rem 0.75rem;">
+            <div id="items-list" style="max-height: 200px; overflow-y: auto; padding: 0.5rem 0.75rem;">
                 <p class="text-muted text-center small mb-0">Toca los productos para agregar</p>
-            </div>
-            <div style="padding: 0.5rem 0.75rem; border-top: 1px solid #e9ecef;">
-                <div class="row g-2 mb-2">
-                    <div class="col-6">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text" style="border-radius: 8px 0 0 8px;">$</span>
-                            <input type="number" class="form-control" id="total_final" name="total_final" value="0" min="0" style="border-radius: 0 8px 8px 0;">
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <input type="text" class="form-control form-control-sm" name="cliente_nombre" placeholder="Cliente" maxlength="100" style="border-radius: 8px;">
-                    </div>
-                </div>
-                <div class="row g-2 mb-2">
-                    <div class="col-6">
-                        <div class="btn-group w-100" role="group">
-                            <input type="radio" class="btn-check" name="metodo_pago" id="mp-efectivo" value="efectivo" checked>
-                            <label class="btn btn-outline-secondary btn-sm" for="mp-efectivo" style="border-radius: 8px 0 0 8px;"><i class="bi bi-cash"></i> Efectivo</label>
-                            <input type="radio" class="btn-check" name="metodo_pago" id="mp-transferencia" value="transferencia">
-                            <label class="btn btn-outline-secondary btn-sm" for="mp-transferencia" style="border-radius: 0 8px 8px 0;"><i class="bi bi-phone"></i> Transf.</label>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <input type="text" class="form-control form-control-sm" name="notas" placeholder="Notas" style="border-radius: 8px;">
-                    </div>
-                </div>
-                <button type="submit" class="btn btn-success w-100 py-2 fw-bold" id="btn-confirmar" disabled style="border-radius: 12px;">
-                    <i class="bi bi-check-lg"></i> Confirmar Venta
-                </button>
             </div>
         </div>
     </div>
+
+    <!-- 4. Payment & notes -->
+    <div class="tile mt-2 mb-2" style="padding: 0.75rem;">
+        <label class="form-label small fw-bold mb-2"><i class="bi bi-credit-card"></i> Pago</label>
+        <div class="d-flex gap-2 mb-3">
+            <div class="input-group input-group-sm flex-grow-1">
+                <span class="input-group-text" style="border-radius: 8px 0 0 8px;">$ Total</span>
+                <input type="number" class="form-control" id="total_final" name="total_final" value="0" min="0" style="border-radius: 0 8px 8px 0;">
+            </div>
+        </div>
+        <div class="btn-group w-100 mb-3" role="group">
+            <input type="radio" class="btn-check" name="metodo_pago" id="mp-efectivo" value="efectivo" checked>
+            <label class="btn btn-outline-secondary btn-sm" for="mp-efectivo" style="border-radius: 8px 0 0 8px;"><i class="bi bi-cash"></i> Efectivo</label>
+            <input type="radio" class="btn-check" name="metodo_pago" id="mp-transferencia" value="transferencia">
+            <label class="btn btn-outline-secondary btn-sm" for="mp-transferencia" style="border-radius: 0 8px 8px 0;"><i class="bi bi-phone"></i> Transferencia</label>
+        </div>
+        <label class="form-label small fw-bold mb-1"><i class="bi bi-chat-left-text"></i> Notas</label>
+        <input type="text" class="form-control form-control-sm" name="notas" placeholder="Notas opcionales" style="border-radius: 8px;">
+    </div>
+
+    <!-- 5. Submit -->
+    <button type="submit" class="btn btn-success w-100 py-3 fw-bold" id="btn-confirmar" disabled style="border-radius: 14px; font-size: 1.1rem;">
+        <i class="bi bi-check-lg"></i> Confirmar Venta
+    </button>
 </form>
 {% endblock %}
 

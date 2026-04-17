@@ -47,6 +47,12 @@ def create_app():
     def health():
         return {'status': 'ok'}
 
+    @app.errorhandler(413)
+    def too_large(e):
+        from flask import flash, redirect, request
+        flash('El archivo es demasiado grande (max 16MB).', 'danger')
+        return redirect(request.referrer or '/'), 302
+
     with app.app_context():
         db.create_all()
         # Add missing columns to existing tables (db.create_all doesn't alter existing tables)

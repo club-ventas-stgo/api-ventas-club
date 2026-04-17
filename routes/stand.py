@@ -88,6 +88,12 @@ def productos(codigo):
             flash('El precio debe ser un número entero.', 'danger')
             return redirect(url_for('stand.productos', codigo=codigo))
 
+        # Prevent duplicates (same name, same stand)
+        existente = Producto.query.filter_by(stand_id=stand.id, nombre=nombre).first()
+        if existente:
+            flash(f'Ya existe un producto "{nombre}".', 'warning')
+            return redirect(url_for('stand.productos', codigo=codigo))
+
         foto = None
         if 'foto' in request.files and request.files['foto'].filename:
             try:
@@ -96,9 +102,15 @@ def productos(codigo):
                 flash('Error al procesar la imagen.', 'danger')
                 return redirect(url_for('stand.productos', codigo=codigo))
 
-        producto = Producto(stand_id=stand.id, nombre=nombre, precio=precio, foto=foto)
-        db.session.add(producto)
-        db.session.commit()
+        try:
+            producto = Producto(stand_id=stand.id, nombre=nombre, precio=precio, foto=foto)
+            db.session.add(producto)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash('Error al guardar el producto.', 'danger')
+            return redirect(url_for('stand.productos', codigo=codigo))
+
         flash(f'Producto "{nombre}" agregado.', 'success')
         return redirect(url_for('stand.productos', codigo=codigo))
 
