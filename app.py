@@ -2,6 +2,7 @@ import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from sqlalchemy import inspect, text
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -48,8 +49,30 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        # Add missing columns to existing tables (db.create_all doesn't alter existing tables)
+        _add_missing_columns(db)
 
     return app
+
+
+def _add_missing_columns(db):
+    """Add columns that db.create_all() can't add to existing tables."""
+    inspector = inspect(db.engine)
+    for table_name, model in db.Model.metadata.tables.items():
+        if table_name not in inspector.get_table_names():
+            continue
+        existing_cols = {c['name'] for c in inspector.get_columns(table_name)}
+        for col in model.columns:
+            if col.name not in existing_cols:
+                col_type = col.type.compile(db.engine.dialect)
+                nullable = "NULL" if col.nullable else "NOT NULL"
+                default = ""
+                if col.default is not None and col.default.is_scalar:
+                    default = f" DEFAULT {col.default.arg!r}"
+                db.session.execute(text(
+                    f'ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type} {nullable}{default}'
+                ))
+                db.session.commit()
 
 
 app = create_app()
