@@ -8,6 +8,23 @@
 {% endblock %}
 
 {% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for category, message in messages %}
+{% if category == 'venta_creada' %}
+{% set parts = message.split('|') %}
+<div class="alert alert-success alert-dismissible fade show py-2 mb-2" style="border-radius: 12px; font-size: 0.85rem;">
+    <i class="bi bi-check-circle-fill"></i> {{ parts[0] }}
+    <a href="{{ url_for('ventas.detalle', codigo=stand.codigo_acceso, venta_id=parts[1]|int) }}" class="alert-link ms-2">Ver venta <i class="bi bi-arrow-right"></i></a>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" style="padding: 0.5rem;"></button>
+</div>
+{% else %}
+<div class="alert alert-{{ category }} alert-dismissible fade show py-2 mb-2" style="border-radius: 12px; font-size: 0.85rem;">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" style="padding: 0.5rem;"></button>
+</div>
+{% endif %}
+{% endfor %}
+{% endwith %}
 <form method="POST" id="form-venta">
     <input type="hidden" name="items" id="items-json">
     {% if sesion_id %}<input type="hidden" name="sesion_id" value="{{ sesion_id }}">{% endif %}
@@ -122,7 +139,12 @@ function render() {
         <div class="d-flex align-items-center justify-content-between py-1 border-bottom">
             <div class="flex-grow-1 me-2">
                 <strong style="font-size:0.82rem;">${item.nombre}</strong>
-                <span class="text-muted" style="font-size:0.72rem;"> ${fmt(item.precio)} x${item.cantidad} = ${fmt(sub)}</span>
+                <div class="d-flex align-items-center gap-1 mt-1">
+                    <span class="text-muted" style="font-size:0.7rem;">$</span>
+                    <input type="number" class="form-control form-control-sm" value="${item.precio}" min="0"
+                           onchange="cambiarPrecio(${id}, this.value)" style="width:70px; height:24px; font-size:0.75rem; padding:0 4px; border-radius:6px;">
+                    <span class="text-muted" style="font-size:0.72rem;">x${item.cantidad} = ${fmt(sub)}</span>
+                </div>
             </div>
             <div class="d-flex align-items-center gap-1 flex-shrink-0">
                 <button type="button" class="btn btn-outline-danger btn-qty" onclick="cambiar(${id},-1)">-</button>
@@ -147,6 +169,10 @@ function cambiar(id, delta) {
     if (items[id]) { items[id].cantidad += delta; if (items[id].cantidad <= 0) delete items[id]; render(); }
 }
 
+function cambiarPrecio(id, valor) {
+    if (items[id]) { items[id].precio = Math.max(0, parseInt(valor) || 0); render(); }
+}
+
 document.querySelectorAll('.producto-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         const id = this.dataset.id;
@@ -157,7 +183,7 @@ document.querySelectorAll('.producto-btn').forEach(btn => {
 });
 
 document.getElementById('form-venta').addEventListener('submit', function() {
-    document.getElementById('items-json').value = JSON.stringify(Object.values(items).map(i => ({producto_id: i.producto_id, cantidad: i.cantidad})));
+    document.getElementById('items-json').value = JSON.stringify(Object.values(items).map(i => ({producto_id: i.producto_id, cantidad: i.cantidad, precio: i.precio})));
 });
 </script>
 {% endblock %}

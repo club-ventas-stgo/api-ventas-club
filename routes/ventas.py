@@ -70,14 +70,18 @@ def nueva(codigo):
                 continue
 
             cantidad = max(1, int(item.get('cantidad', 1)))
-            subtotal = producto.precio * cantidad
+            try:
+                precio_unitario = int(item.get('precio', producto.precio))
+            except (ValueError, TypeError):
+                precio_unitario = producto.precio
+            subtotal = precio_unitario * cantidad
             total_original += subtotal
 
             detalles.append(DetalleVenta(
                 producto_id=producto.id,
                 nombre_producto=producto.nombre,
                 cantidad=cantidad,
-                precio_unitario=producto.precio,
+                precio_unitario=precio_unitario,
                 subtotal=subtotal
             ))
 
@@ -109,8 +113,11 @@ def nueva(codigo):
             db.session.add(detalle)
 
         db.session.commit()
-        flash(f'Venta #{venta.numero_orden} creada.', 'success')
-        return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+        flash(f'Venta #{venta.numero_orden} creada.|{venta.id}', 'venta_creada')
+        redirect_args = {'codigo': codigo}
+        if sesion_id:
+            redirect_args['sesion_id'] = sesion_id
+        return redirect(url_for('ventas.nueva', **redirect_args))
 
     productos = stand.productos.filter_by(activo=True).order_by(Producto.nombre).all()
     promociones = stand.promociones.filter_by(activa=True).all()

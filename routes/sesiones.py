@@ -69,6 +69,29 @@ def cambiar_estado(codigo, sesion_id):
     return redirect(url_for('sesiones.detalle', codigo=codigo, sesion_id=sesion.id))
 
 
+@sesiones_bp.route('/<codigo>/sesiones/<int:sesion_id>/nuevo-integrante', methods=['POST'])
+def nuevo_integrante(codigo, sesion_id):
+    stand = get_stand_or_404(codigo)
+    sesion = SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first_or_404()
+
+    nombre = request.form.get('nombre', '').strip()
+    telefono = request.form.get('telefono', '').strip()
+
+    if not nombre:
+        flash('El nombre es obligatorio.', 'danger')
+        return redirect(url_for('sesiones.detalle', codigo=codigo, sesion_id=sesion.id))
+
+    integrante = Integrante(
+        stand_id=stand.id,
+        nombre=nombre,
+        telefono=telefono or None
+    )
+    db.session.add(integrante)
+    db.session.commit()
+    flash(f'Integrante "{nombre}" creado.', 'success')
+    return redirect(url_for('sesiones.detalle', codigo=codigo, sesion_id=sesion.id))
+
+
 @sesiones_bp.route('/<codigo>/sesiones/<int:sesion_id>/integrantes', methods=['POST'])
 def gestionar_integrantes(codigo, sesion_id):
     stand = get_stand_or_404(codigo)

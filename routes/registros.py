@@ -1,10 +1,10 @@
 import io
 from collections import OrderedDict
-from datetime import datetime, timedelta
-from flask import Blueprint, render_template, send_file, abort
+from datetime import date, datetime, timedelta
+from flask import Blueprint, render_template, send_file, abort, request, redirect, url_for, flash
 from sqlalchemy import func
 from app import db
-from models import Venta
+from models import Venta, SesionVenta
 
 from routes.stand import get_stand_or_404
 
@@ -268,9 +268,23 @@ def detalle_dia(codigo, fecha):
         abort(404)
 
     resumen = obtener_resumen_dia(stand, fecha)
+
+    # Check if there's a session linked to this day's sales
+    sesion_vinculada = None
+    sesiones_disponibles = []
+    if resumen:
+        # Find session linked to any sale of this day
+        for v in resumen['ventas']:
+            if v.sesion_id:
+                sesion_vinculada = SesionVenta.query.get(v.sesion_id)
+                break
+        # Get available sessions for linking
+        sesiones_disponibles = stand.sesiones.order_by(SesionVenta.fecha.desc()).all()
+
     if not resumen:
         return render_template('stand/registro_dia.html', stand=stand, resumen=None, fecha=fecha)
-    return render_template('stand/registro_dia.html', stand=stand, resumen=resumen, fecha=fecha)
+    return render_template('stand/registro_dia.html', stand=stand, resumen=resumen, fecha=fecha,
+                           sesion_vinculada=sesion_vinculada, sesiones_disponibles=sesiones_disponibles)
 
 
 @registros_bp.route('/<codigo>/registros/<fecha>/excel')
@@ -462,3 +476,52 @@ def exportar_dia_excel(codigo, fecha):
     filename = f"{stand.nombre}_Registro_{fecha}.xlsx"
     return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                      as_attachment=True, download_name=filename)
+
+
+@registros_bp.route('/<codigo>/registros/<fecha>/vincular-sesion', methods=['POST'])
+def vincular_sesion(codigo, fecha):
+    stand = get_stand_or_404(codigo)
+
+    fecha_date = parsear_fecha(fecha)
+    if not fecha_date:
+        abort(404)
+
+    sesion_id = request.form.get('sesion_id', type=int)
+    crear_nueva = request.form.get('crear_nueva')
+
+    if crear_nueva:
+        nombre = request.form.get('nombre', '').strip()
+        sesion = SesionVenta(
+            stand_id=stand.id,
+            fecha=fecha_date,
+            nombre=nombre or None,
+            estado='abierta'
+        )
+        db.session.add(sesion)
+        db.session.flush()
+        sesion_id = sesion.id
+    elif sesion_id:
+        sesion = SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first()
+        if not sesion:
+            flash('Sesion no encontrada.', 'danger')
+            return redirect(url_for('registros.detalle_dia', codigo=codigo, fecha=fecha))
+    else:
+        flash('Selecciona una sesion o crea una nueva.', 'danger')
+        return redirect(url_for('registros.detalle_dia', codigo=codigo, fecha=fecha))
+
+    # Update all sales of this day to link to the session
+    fecha_inicio = datetime(fecha_date.year, fecha_date.month, fecha_date.day)
+    fecha_fin = fecha_inicio + timedelta(days=1)
+
+    ventas = Venta.query.filter(
+        Venta.stand_id == stand.id,
+        Venta.created_at >= fecha_inicio,
+        Venta.created_at < fecha_fin
+    ).all()
+
+    for v in ventas:
+        v.sesion_id = sesion_id
+
+    db.session.commit()
+    flash(f'Sesion vinculada a {len(ventas)} ventas.', 'success')
+    return redirect(url_for('registros.detalle_dia', codigo=codigo, fecha=fecha))

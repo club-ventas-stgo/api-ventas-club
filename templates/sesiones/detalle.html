@@ -205,8 +205,18 @@
                     </div>
                     {% endfor %}
                     {% else %}
-                    <p class="text-muted text-center mb-0">No hay integrantes activos. <a href="{{ url_for('stand.integrantes', codigo=stand.codigo_acceso) }}">Agregar integrantes</a></p>
+                    <p class="text-muted text-center small mb-2">No hay integrantes activos.</p>
                     {% endif %}
+                    <div class="border-top pt-2 mt-2">
+                        <p class="small fw-semibold mb-2"><i class="bi bi-plus-circle"></i> Nuevo integrante</p>
+                        <div class="d-flex gap-2" id="form-nuevo-integ">
+                            <input type="text" class="form-control form-control-sm" id="nuevo-integ-nombre" placeholder="Nombre" style="border-radius: 8px;">
+                            <input type="text" class="form-control form-control-sm" id="nuevo-integ-tel" placeholder="Telefono" style="border-radius: 8px; width: 120px;">
+                            <button type="button" class="btn btn-sm btn-success flex-shrink-0" onclick="crearIntegrante()" style="border-radius: 8px;">
+                                <i class="bi bi-plus"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer py-2">
                     <button type="submit" class="btn btn-primary w-100" style="border-radius: 12px;">
@@ -217,4 +227,21 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function crearIntegrante() {
+    const nombre = document.getElementById('nuevo-integ-nombre').value.trim();
+    const telefono = document.getElementById('nuevo-integ-tel').value.trim();
+    if (!nombre) { alert('El nombre es obligatorio.'); return; }
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ url_for("sesiones.nuevo_integrante", codigo=stand.codigo_acceso, sesion_id=sesion.id) }}';
+    const inputN = document.createElement('input'); inputN.name = 'nombre'; inputN.value = nombre; form.appendChild(inputN);
+    const inputT = document.createElement('input'); inputT.name = 'telefono'; inputT.value = telefono; form.appendChild(inputT);
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
 {% endblock %}
