@@ -4,7 +4,7 @@ from datetime import timezone
 from zoneinfo import ZoneInfo
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from app import db
-from models import Stand, Producto, Venta, DetalleVenta
+from models import Stand, Producto, Promocion, Venta, DetalleVenta
 from routes.stand import get_stand_or_404
 
 CHILE_TZ = ZoneInfo('America/Santiago')
@@ -78,6 +78,7 @@ def lista(codigo):
 @ventas_bp.route('/<codigo>/ventas/nueva', methods=['GET', 'POST'])
 def nueva(codigo):
     stand = get_stand_or_404(codigo)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     if request.method == 'POST':
         cliente = request.form.get('cliente_nombre', '').strip()
@@ -89,10 +90,14 @@ def nueva(codigo):
         try:
             items = json.loads(items_json)
         except (json.JSONDecodeError, TypeError):
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'Error en los datos de productos.'}), 400
             flash('Error en los datos de productos.', 'danger')
             return redirect(url_for('ventas.nueva', codigo=codigo))
 
         if not items:
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'Debe agregar al menos un producto.'}), 400
             flash('Debe agregar al menos un producto.', 'danger')
             return redirect(url_for('ventas.nueva', codigo=codigo))
 
@@ -124,6 +129,8 @@ def nueva(codigo):
             ))
 
         if not detalles:
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'No se encontraron productos válidos.'}), 400
             flash('No se encontraron productos válidos.', 'danger')
             return redirect(url_for('ventas.nueva', codigo=codigo))
 
@@ -155,8 +162,13 @@ def nueva(codigo):
             db.session.commit()
         except Exception:
             db.session.rollback()
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'Error al guardar la venta.'}), 500
             flash('Error al guardar la venta.', 'danger')
             return redirect(url_for('ventas.nueva', codigo=codigo))
+
+        if is_ajax:
+            return jsonify({'success': True, 'venta_id': venta.id, 'numero_orden': venta.numero_orden})
 
         flash(f'Venta #{venta.numero_orden} creada.|{venta.id}', 'venta_creada')
         redirect_args = {'codigo': codigo}
@@ -213,6 +225,9 @@ def cambiar_estado(codigo, venta_id):
         venta.estado_entrega = nuevo_estado
         db.session.commit()
 
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'estado_entrega': venta.estado_entrega})
+
     referer = request.form.get('redirect', '')
     if 'cocina' in referer:
         return redirect(url_for('cocina.panel', codigo=codigo))
@@ -226,6 +241,10 @@ def marcar_pagado(codigo, venta_id):
     venta.monto_pagado = venta.total_final
     venta.estado_pago = 'pagado'
     db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'estado_pago': venta.estado_pago, 'monto_pagado': venta.monto_pagado})
+
     flash('Venta marcada como pagada.', 'success')
     return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
 
@@ -236,6 +255,10 @@ def marcar_entregado(codigo, venta_id):
     venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
     venta.estado_entrega = 'entregado'
     db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'estado_entrega': venta.estado_entrega})
+
     flash('Venta marcada como entregada.', 'success')
     return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
 
@@ -273,6 +296,7 @@ def editar_venta(codigo, venta_id):
     """Edit an existing order - add/remove products."""
     stand = get_stand_or_404(codigo)
     venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     if request.method == 'POST':
         cliente = request.form.get('cliente_nombre', '').strip()
@@ -283,10 +307,14 @@ def editar_venta(codigo, venta_id):
         try:
             items = json.loads(items_json)
         except (json.JSONDecodeError, TypeError):
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'Error en los datos de productos.'}), 400
             flash('Error en los datos de productos.', 'danger')
             return redirect(url_for('ventas.editar_venta', codigo=codigo, venta_id=venta_id))
 
         if not items:
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'Debe tener al menos un producto.'}), 400
             flash('Debe tener al menos un producto.', 'danger')
             return redirect(url_for('ventas.editar_venta', codigo=codigo, venta_id=venta_id))
 
@@ -317,6 +345,8 @@ def editar_venta(codigo, venta_id):
             ))
 
         if not detalles:
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'No se encontraron productos válidos.'}), 400
             flash('No se encontraron productos válidos.', 'danger')
             return redirect(url_for('ventas.editar_venta', codigo=codigo, venta_id=venta_id))
 
@@ -338,8 +368,13 @@ def editar_venta(codigo, venta_id):
             db.session.commit()
         except Exception:
             db.session.rollback()
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'Error al actualizar la venta.'}), 500
             flash('Error al actualizar la venta.', 'danger')
             return redirect(url_for('ventas.editar_venta', codigo=codigo, venta_id=venta_id))
+
+        if is_ajax:
+            return jsonify({'success': True, 'total_final': venta.total_final})
 
         flash(f'Venta #{venta.numero_orden} actualizada.', 'success')
         return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
@@ -429,3 +464,57 @@ def actualizar_pago(codigo, venta_id):
 
     flash('Pago actualizado.', 'success')
     return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+
+
+@ventas_bp.route('/<codigo>/control')
+def control(codigo):
+    """Unified control panel with all tabs."""
+    stand = get_stand_or_404(codigo)
+    productos = stand.productos.order_by(Producto.activo.desc(), Producto.created_at.desc()).all()
+    productos_activos = [p for p in productos if p.activo]
+    promociones = stand.promociones.order_by(Promocion.activa.desc(), Promocion.created_at.desc()).all()
+    promociones_activas = [p for p in promociones if p.activa]
+
+    # Ventas
+    ventas = stand.ventas.order_by(Venta.created_at.desc()).all()
+    ventas_por_dia = OrderedDict()
+    for v in ventas:
+        local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
+        dia = local_dt.strftime('%Y-%m-%d')
+        if dia not in ventas_por_dia:
+            ventas_por_dia[dia] = {'ventas': [], 'total': 0, 'count': 0}
+        ventas_por_dia[dia]['ventas'].append(v)
+        ventas_por_dia[dia]['total'] += v.total_final
+        ventas_por_dia[dia]['count'] += 1
+
+    return render_template('ventas/control.html', stand=stand,
+                           productos=productos, productos_activos=productos_activos,
+                           promociones=promociones, promociones_activas=promociones_activas,
+                           ventas_por_dia=ventas_por_dia)
+
+
+@ventas_bp.route('/<codigo>/ventas/<int:venta_id>/json')
+def venta_json(codigo, venta_id):
+    """Return full sale detail as JSON for inline expand."""
+    stand = get_stand_or_404(codigo)
+    venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
+
+    return jsonify({
+        'id': venta.id,
+        'numero_orden': venta.numero_orden,
+        'cliente_nombre': venta.cliente_nombre or '',
+        'metodo_pago': venta.metodo_pago,
+        'estado_pago': venta.estado_pago,
+        'monto_pagado': venta.monto_pagado,
+        'total_original': venta.total_original,
+        'total_final': venta.total_final,
+        'estado_entrega': venta.estado_entrega,
+        'notas': venta.notas or '',
+        'created_at': venta.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ).strftime('%d/%m/%Y %H:%M'),
+        'detalles': [{
+            'nombre_producto': d.nombre_producto,
+            'cantidad': d.cantidad,
+            'precio_unitario': d.precio_unitario,
+            'subtotal': d.subtotal
+        } for d in venta.detalles]
+    })

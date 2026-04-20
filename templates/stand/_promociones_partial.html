@@ -1,0 +1,39 @@
+<div class="row g-2">
+    {% for promo in promociones %}
+    <div class="col-12 col-md-6">
+        <div class="tile {{ 'opacity-50' if not promo.activa }}" style="padding: 0.75rem 1rem;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="flex-grow-1 me-2">
+                    <strong><i class="bi bi-tag-fill text-warning"></i> {{ promo.nombre }}</strong>
+                    {% if not promo.activa %}
+                    <span class="badge bg-danger" style="font-size: 0.6rem;">Off</span>
+                    {% endif %}
+                    {% if promo.descripcion %}
+                    <br><small class="text-muted">{{ promo.descripcion }}</small>
+                    {% endif %}
+                </div>
+                <div class="d-flex gap-1 flex-shrink-0">
+                    <button type="button" class="btn btn-sm {{ 'btn-outline-danger' if promo.activa else 'btn-outline-success' }}" style="border-radius: 8px;"
+                            onclick="togglePromo({{ promo.id }})">
+                        <i class="bi {{ 'bi-eye-slash' if promo.activa else 'bi-eye' }}"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" style="border-radius: 8px;"
+                            onclick="if(confirm('Eliminar?')) eliminarPromo({{ promo.id }})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Add promo tile -->
+    <div class="col-12 col-md-6">
+        <div class="tile tile-new" data-bs-toggle="modal" data-bs-target="#modal-promo" style="min-height: 60px;">
+            <div class="text-center text-muted">
+                <i class="bi bi-plus-circle" style="font-size: 1.5rem;"></i>
+                <span class="ms-2 fw-semibold" style="font-size: 0.85rem;">Nueva Promocion</span>
+            </div>
+        </div>
+    </div>
+</div>

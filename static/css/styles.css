@@ -710,6 +710,87 @@ img {
     }
 }
 
+/* ===== CONTROL PANEL TABS ===== */
+.control-tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--tile-bg);
+    border-radius: var(--tile-radius);
+    box-shadow: var(--tile-shadow);
+    padding: 4px;
+    position: sticky;
+    top: var(--nav-height);
+    z-index: 100;
+    margin-bottom: 12px;
+}
+
+.control-tab {
+    flex: 1;
+    padding: 0.55rem 0.25rem;
+    border: none;
+    border-radius: 14px;
+    background: transparent;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.control-tab.active {
+    background: linear-gradient(135deg, #007aff, #5856d6);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+}
+
+.control-tab:hover:not(.active) {
+    background: #f0f2f5;
+    color: #1a1a2e;
+}
+
+.control-tab i {
+    font-size: 1rem;
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+/* Venta expand inline */
+.venta-expand {
+    animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; max-height: 0; }
+    to { opacity: 1; max-height: 1000px; }
+}
+
+/* Mobile: hide tab labels */
+@media (max-width: 576px) {
+    .control-tab .tab-label {
+        display: none;
+    }
+    .control-tab {
+        padding: 0.6rem 0.3rem;
+    }
+    .control-tab i {
+        font-size: 1.15rem;
+    }
+    .control-tabs {
+        border-radius: 14px;
+        margin-bottom: 8px;
+    }
+}
+
 /* ===== HERO ===== */
 .hero-tile {
     border-radius: var(--tile-radius);

@@ -79,6 +79,17 @@
 
 <!-- Navigation tiles -->
 <div class="row g-2">
+    <div class="col-12 mb-1">
+        <a href="{{ url_for('ventas.control', codigo=stand.codigo_acceso) }}" class="tile-link">
+            <div class="tile" style="padding: 1rem; background: linear-gradient(135deg, #007aff, #5856d6); color: white; text-align: center;">
+                <div class="d-flex align-items-center justify-content-center gap-2">
+                    <i class="bi bi-columns-gap" style="font-size: 1.4rem;"></i>
+                    <h6 class="mb-0 fw-bold" style="color: white;">Panel de Control</h6>
+                </div>
+                <small style="opacity: 0.85;">Registrar, ventas, productos y mas - todo en uno</small>
+            </div>
+        </a>
+    </div>
     <div class="col-6 col-md-4">
         <a href="{{ url_for('ventas.nueva', codigo=stand.codigo_acceso) }}" class="tile-link">
             <div class="tile dash-tile">

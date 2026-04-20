@@ -1,0 +1,87 @@
+<div class="row g-2">
+    {% for p in productos %}
+    <div class="col-6 col-md-4 col-lg-3">
+        <div class="tile {{ 'opacity-50' if not p.activo }}" style="padding: 0;">
+            {% if p.foto %}
+            <img src="{{ p.foto }}" alt="{{ p.nombre }}" style="width: 100%; height: 100px; object-fit: cover; border-radius: var(--tile-radius) var(--tile-radius) 0 0; display: block;">
+            {% else %}
+            <div class="d-flex align-items-center justify-content-center" style="height: 100px; border-radius: var(--tile-radius) var(--tile-radius) 0 0; background: linear-gradient(135deg, #e0e0e0, #c0c0c0);">
+                <i class="bi bi-box text-white" style="font-size: 2rem;"></i>
+            </div>
+            {% endif %}
+            <div style="padding: 0.5rem;">
+                <h6 class="mb-0 text-truncate" style="font-size: 0.82rem;">{{ p.nombre }}</h6>
+                <div class="d-flex align-items-center gap-1">
+                    <span class="fw-bold text-success" style="font-size: 0.85rem;">${{ '{:,}'.format(p.precio) }}</span>
+                    {% if p.stock is not none %}
+                    <span class="badge {{ 'bg-success' if p.stock_disponible > 5 else ('bg-warning text-dark' if p.stock_disponible > 0 else 'bg-danger') }}" style="font-size: 0.58rem; border-radius: 6px;">
+                        {{ p.stock_disponible }}/{{ p.stock }}
+                    </span>
+                    {% endif %}
+                    {% if not p.activo %}
+                    <span class="badge bg-danger" style="font-size: 0.58rem;">Off</span>
+                    {% endif %}
+                </div>
+                <div class="d-flex gap-1 mt-1">
+                    <button class="btn btn-sm btn-outline-primary flex-grow-1" data-bs-toggle="modal" data-bs-target="#editar-{{ p.id }}" style="border-radius: 8px; font-size: 0.68rem;">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm {{ 'btn-outline-danger' if p.activo else 'btn-outline-success' }}" style="border-radius: 8px; font-size: 0.68rem;"
+                            onclick="toggleProducto({{ p.id }})">
+                        <i class="bi {{ 'bi-eye-slash' if p.activo else 'bi-eye' }}"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit modal -->
+    <div class="modal fade" id="editar-{{ p.id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form onsubmit="return editarProducto(event, {{ p.id }})" enctype="multipart/form-data">
+                    <div class="modal-header py-2">
+                        <h6 class="modal-title fw-bold">Editar {{ p.nombre }}</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Nombre</label>
+                            <input type="text" class="form-control" name="nombre" value="{{ p.nombre }}" maxlength="100" style="border-radius: 12px;">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Precio ($)</label>
+                            <input type="number" class="form-control" name="precio" value="{{ p.precio }}" min="0" style="border-radius: 12px;">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Stock (vacio = sin limite)</label>
+                            <input type="number" class="form-control" name="stock" value="{{ p.stock if p.stock is not none else '' }}" min="0" placeholder="Sin limite" style="border-radius: 12px;">
+                            {% if p.stock is not none %}
+                            <small class="text-muted">Vendidos: {{ p.stock_vendido }} | Disponible: {{ p.stock_disponible }}</small>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label class="form-label small fw-semibold">Nueva Foto</label>
+                            <input type="file" class="form-control" name="foto" accept="image/*" style="border-radius: 12px;">
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" style="border-radius: 10px;">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" style="border-radius: 10px;">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Add new product tile -->
+    <div class="col-6 col-md-4 col-lg-3">
+        <div class="tile tile-new" data-bs-toggle="modal" data-bs-target="#modal-agregar-prod" style="min-height: 150px;">
+            <div class="text-center text-muted">
+                <i class="bi bi-plus-circle" style="font-size: 2rem;"></i>
+                <p class="mb-0 mt-1 fw-semibold" style="font-size: 0.8rem;">Agregar</p>
+            </div>
+        </div>
+    </div>
+</div>

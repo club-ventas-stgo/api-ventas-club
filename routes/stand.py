@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
 from sqlalchemy import func
 from app import db
 from models import Stand, Producto, Promocion, Venta, Integrante
@@ -116,8 +116,13 @@ def productos(codigo):
             db.session.commit()
         except Exception:
             db.session.rollback()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'error': 'Error al guardar el producto.'}), 500
             flash('Error al guardar el producto.', 'danger')
             return redirect(url_for('stand.productos', codigo=codigo))
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'id': producto.id, 'nombre': producto.nombre})
 
         flash(f'Producto "{nombre}" agregado.', 'success')
         return redirect(url_for('stand.productos', codigo=codigo))
@@ -139,6 +144,8 @@ def editar_producto(codigo, producto_id):
     try:
         producto.precio = int(precio)
     except ValueError:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'El precio debe ser un número entero.'}), 400
         flash('El precio debe ser un número entero.', 'danger')
         return redirect(url_for('stand.productos', codigo=codigo))
 
@@ -155,10 +162,16 @@ def editar_producto(codigo, producto_id):
         try:
             producto.foto = comprimir_imagen(request.files['foto'])
         except Exception:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'error': 'Error al procesar la imagen.'}), 500
             flash('Error al procesar la imagen.', 'danger')
             return redirect(url_for('stand.productos', codigo=codigo))
 
     db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True})
+
     flash(f'Producto "{producto.nombre}" actualizado.', 'success')
     return redirect(url_for('stand.productos', codigo=codigo))
 
@@ -169,6 +182,10 @@ def toggle_producto(codigo, producto_id):
     producto = Producto.query.filter_by(id=producto_id, stand_id=stand.id).first_or_404()
     producto.activo = not producto.activo
     db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'activo': producto.activo})
+
     estado = "activado" if producto.activo else "desactivado"
     flash(f'Producto "{producto.nombre}" {estado}.', 'info')
     return redirect(url_for('stand.productos', codigo=codigo))
@@ -183,12 +200,18 @@ def promociones(codigo):
         descripcion = request.form.get('descripcion', '').strip()
 
         if not nombre:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'error': 'El nombre es obligatorio.'}), 400
             flash('El nombre de la promoción es obligatorio.', 'danger')
             return redirect(url_for('stand.promociones', codigo=codigo))
 
         promo = Promocion(stand_id=stand.id, nombre=nombre, descripcion=descripcion)
         db.session.add(promo)
         db.session.commit()
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'id': promo.id, 'nombre': promo.nombre})
+
         flash(f'Promoción "{nombre}" creada.', 'success')
         return redirect(url_for('stand.promociones', codigo=codigo))
 
@@ -202,6 +225,10 @@ def toggle_promocion(codigo, promo_id):
     promo = Promocion.query.filter_by(id=promo_id, stand_id=stand.id).first_or_404()
     promo.activa = not promo.activa
     db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'activa': promo.activa})
+
     estado = "activada" if promo.activa else "desactivada"
     flash(f'Promoción "{promo.nombre}" {estado}.', 'info')
     return redirect(url_for('stand.promociones', codigo=codigo))
@@ -213,8 +240,28 @@ def eliminar_promocion(codigo, promo_id):
     promo = Promocion.query.filter_by(id=promo_id, stand_id=stand.id).first_or_404()
     db.session.delete(promo)
     db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True})
+
     flash(f'Promoción eliminada.', 'info')
     return redirect(url_for('stand.promociones', codigo=codigo))
+
+
+@stand_bp.route('/<codigo>/productos/partial')
+def productos_partial(codigo):
+    """Return partial HTML for products list (AJAX refresh)."""
+    stand = get_stand_or_404(codigo)
+    todos = stand.productos.order_by(Producto.activo.desc(), Producto.created_at.desc()).all()
+    return render_template('stand/_productos_partial.html', stand=stand, productos=todos)
+
+
+@stand_bp.route('/<codigo>/promociones/partial')
+def promociones_partial(codigo):
+    """Return partial HTML for promotions list (AJAX refresh)."""
+    stand = get_stand_or_404(codigo)
+    todas = stand.promociones.order_by(Promocion.activa.desc(), Promocion.created_at.desc()).all()
+    return render_template('stand/_promociones_partial.html', stand=stand, promociones=todas)
 
 
 @stand_bp.route('/<codigo>/integrantes', methods=['GET', 'POST'])

@@ -1,0 +1,100 @@
+<!-- Filters -->
+<div class="tile filter-bar mb-3" style="padding: 0.5rem 0.75rem;">
+    <div class="d-flex gap-1 align-items-center">
+        <input type="text" class="form-control form-control-sm flex-fill" id="ctrl-buscar" placeholder="Buscar cliente o #orden..." style="border-radius: 8px; min-width: 0;" oninput="buscarVentasControl(this.value)">
+        <select id="ctrl-filtro-estado" class="form-select form-select-sm" style="border-radius: 8px; min-width: 0; max-width: 110px;" onchange="filtrarVentas()">
+            <option value="">Entrega</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="en_preparacion">En Prep.</option>
+            <option value="listo">Listo</option>
+            <option value="entregado">Entregado</option>
+        </select>
+        <select id="ctrl-filtro-pago" class="form-select form-select-sm" style="border-radius: 8px; min-width: 0; max-width: 100px;" onchange="filtrarVentas()">
+            <option value="">Pago</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="parcial">Parcial</option>
+            <option value="pagado">Pagado</option>
+        </select>
+    </div>
+</div>
+
+<!-- Search results area -->
+<div id="ctrl-buscar-results" class="d-none mb-3"></div>
+
+<!-- Day groups -->
+<div id="ctrl-ventas-list">
+{% if ventas_por_dia %}
+    {% for dia, data in ventas_por_dia.items() %}
+    <div class="day-group">
+        <div class="day-group-header d-flex justify-content-between align-items-center"
+             data-bs-toggle="collapse" data-bs-target="#ctrl-dia-{{ loop.index }}"
+             onclick="this.classList.toggle('collapsed')">
+            <div>
+                <i class="bi bi-calendar3"></i>
+                <strong>{{ dia }}</strong>
+                <span class="badge bg-secondary" style="border-radius: 8px;">{{ data.count }}</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="fw-bold text-success">${{ '{:,}'.format(data.total) }}</span>
+                <i class="bi bi-chevron-down"></i>
+            </div>
+        </div>
+        <div class="collapse {{ 'show' if loop.first }}" id="ctrl-dia-{{ loop.index }}">
+            {% for v in data.ventas %}
+            <div class="venta-item estado-{{ v.estado_entrega }}" style="cursor: pointer;" onclick="expandVenta({{ v.id }}, this)">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <strong>#{{ v.numero_orden }}</strong>
+                            {% if v.cliente_nombre %}
+                            <small class="text-muted">{{ v.cliente_nombre }}</small>
+                            {% endif %}
+                            <small class="text-muted">{{ v.created_at|local_time('%H:%M') }}</small>
+                        </div>
+                        <div style="font-size: 0.78rem;">
+                            {% for d in v.detalles %}
+                            <span class="text-muted">{{ d.cantidad }}x {{ d.nombre_producto }}{% if not loop.last %}, {% endif %}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="text-end flex-shrink-0 ms-2">
+                        <div class="d-flex align-items-center justify-content-end gap-1">
+                            <strong>${{ '{:,}'.format(v.total_final) }}</strong>
+                            {% if v.estado_entrega == 'entregado' %}
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if v.estado_pago == 'pagado' %}
+                            <span class="badge bg-success" style="font-size:0.6rem; border-radius: 6px;">Pagado</span>
+                            {% elif v.estado_pago == 'parcial' %}
+                            <span class="badge bg-warning text-dark" style="font-size:0.6rem; border-radius: 6px;">${{ '{:,}'.format(v.monto_pagado) }}/${{ '{:,}'.format(v.total_final) }}</span>
+                            {% else %}
+                            <span class="badge bg-danger" style="font-size:0.6rem; border-radius: 6px;">No pagado</span>
+                            {% endif %}
+                            {% if v.estado_entrega != 'entregado' %}
+                                {% if v.estado_entrega == 'listo' %}
+                                <span class="badge bg-info" style="font-size:0.6rem; border-radius: 6px;">Listo</span>
+                                {% elif v.estado_entrega == 'en_preparacion' %}
+                                <span class="badge bg-warning text-dark" style="font-size:0.6rem; border-radius: 6px;">Prep.</span>
+                                {% else %}
+                                <span class="badge bg-secondary" style="font-size:0.6rem; border-radius: 6px;">Pend.</span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <!-- Inline expand area -->
+                <div class="venta-expand" id="venta-expand-{{ v.id }}" style="display: none;"></div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="tile text-center py-5">
+    <i class="bi bi-receipt text-muted" style="font-size: 3rem;"></i>
+    <p class="text-muted mt-2 mb-0">No hay ventas registradas.</p>
+</div>
+{% endif %}
+</div>
