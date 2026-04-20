@@ -47,7 +47,7 @@ def detalle(codigo, sesion_id):
 
     total_ventas = len(ventas)
     total_recaudado = sum(v.total_final for v in ventas)
-    total_pagado = sum(v.monto_pagado for v in ventas)
+    total_pagado = sum(v.monto_pagado or 0 for v in ventas)
 
     return render_template('sesiones/detalle.html', stand=stand, sesion=sesion,
                            ventas=ventas, integrantes_disponibles=integrantes_disponibles,

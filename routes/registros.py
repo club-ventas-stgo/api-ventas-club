@@ -57,7 +57,7 @@ def obtener_resumen_dia(stand, fecha_str):
 
     total_ventas = len(ventas)
     total_recaudado = sum(v.total_final for v in ventas)
-    total_pagado = sum(v.monto_pagado for v in ventas)
+    total_pagado = sum(v.monto_pagado or 0 for v in ventas)
     total_pendiente_pago = total_recaudado - total_pagado
 
     ventas_efectivo = sum(1 for v in ventas if v.metodo_pago == 'efectivo')
@@ -124,7 +124,7 @@ def index(codigo):
             dias_dict[dia] = {'total_ventas': 0, 'total_recaudado': 0, 'total_pagado': 0}
         dias_dict[dia]['total_ventas'] += 1
         dias_dict[dia]['total_recaudado'] += v.total_final
-        dias_dict[dia]['total_pagado'] += v.monto_pagado
+        dias_dict[dia]['total_pagado'] += v.monto_pagado or 0
 
     dias = []
     for fecha_str, data in dias_dict.items():
@@ -158,7 +158,7 @@ def index_partial(codigo):
             dias_dict[dia] = {'total_ventas': 0, 'total_recaudado': 0, 'total_pagado': 0}
         dias_dict[dia]['total_ventas'] += 1
         dias_dict[dia]['total_recaudado'] += v.total_final
-        dias_dict[dia]['total_pagado'] += v.monto_pagado
+        dias_dict[dia]['total_pagado'] += v.monto_pagado or 0
 
     dias = []
     for fecha_str, data in dias_dict.items():

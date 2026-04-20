@@ -7,7 +7,7 @@
 </a>
 {% endblock %}
 
-{% block content %}
+{% block flashes %}
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% for category, message in messages %}
 {% if category == 'venta_creada' %}
@@ -25,6 +25,9 @@
 {% endif %}
 {% endfor %}
 {% endwith %}
+{% endblock %}
+
+{% block content %}
 <form method="POST" id="form-venta">
     <input type="hidden" name="items" id="items-json">
     {% if sesion_id %}<input type="hidden" name="sesion_id" value="{{ sesion_id }}">{% endif %}

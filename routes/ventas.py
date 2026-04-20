@@ -104,7 +104,10 @@ def nueva(codigo):
             if not producto or producto.stand_id != stand.id:
                 continue
 
-            cantidad = max(1, int(item.get('cantidad', 1)))
+            try:
+                cantidad = max(1, int(item.get('cantidad', 1)))
+            except (ValueError, TypeError):
+                cantidad = 1
             try:
                 precio_unitario = int(item.get('precio', producto.precio))
             except (ValueError, TypeError):
@@ -126,28 +129,35 @@ def nueva(codigo):
 
         try:
             total_final = int(total_final_str)
-        except ValueError:
+        except (ValueError, TypeError):
             total_final = total_original
 
         sesion_id = request.form.get('sesion_id', type=int)
-        venta = Venta(
-            stand_id=stand.id,
-            sesion_id=sesion_id,
-            numero_orden=siguiente_numero_orden(stand.id),
-            cliente_nombre=cliente,
-            metodo_pago=metodo_pago,
-            total_original=total_original,
-            total_final=total_final,
-            notas=notas
-        )
-        db.session.add(venta)
-        db.session.flush()
 
-        for detalle in detalles:
-            detalle.venta_id = venta.id
-            db.session.add(detalle)
+        try:
+            venta = Venta(
+                stand_id=stand.id,
+                sesion_id=sesion_id,
+                numero_orden=siguiente_numero_orden(stand.id),
+                cliente_nombre=cliente,
+                metodo_pago=metodo_pago,
+                total_original=total_original,
+                total_final=total_final,
+                notas=notas
+            )
+            db.session.add(venta)
+            db.session.flush()
 
-        db.session.commit()
+            for detalle in detalles:
+                detalle.venta_id = venta.id
+                db.session.add(detalle)
+
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash('Error al guardar la venta.', 'danger')
+            return redirect(url_for('ventas.nueva', codigo=codigo))
+
         flash(f'Venta #{venta.numero_orden} creada.|{venta.id}', 'venta_creada')
         redirect_args = {'codigo': codigo}
         if sesion_id:
@@ -280,16 +290,17 @@ def editar_venta(codigo, venta_id):
             flash('Debe tener al menos un producto.', 'danger')
             return redirect(url_for('ventas.editar_venta', codigo=codigo, venta_id=venta_id))
 
-        # Remove old detalles
-        DetalleVenta.query.filter_by(venta_id=venta.id).delete()
-
+        # Validate new items BEFORE deleting old ones
         detalles = []
         total_original = 0
         for item in items:
             producto = Producto.query.get(item.get('producto_id'))
             if not producto or producto.stand_id != stand.id:
                 continue
-            cantidad = max(1, int(item.get('cantidad', 1)))
+            try:
+                cantidad = max(1, int(item.get('cantidad', 1)))
+            except (ValueError, TypeError):
+                cantidad = 1
             try:
                 precio_unitario = int(item.get('precio', producto.precio))
             except (ValueError, TypeError):
@@ -309,18 +320,27 @@ def editar_venta(codigo, venta_id):
             flash('No se encontraron productos válidos.', 'danger')
             return redirect(url_for('ventas.editar_venta', codigo=codigo, venta_id=venta_id))
 
-        for d in detalles:
-            db.session.add(d)
-
-        venta.cliente_nombre = cliente
-        venta.notas = notas
-        venta.total_original = total_original
         try:
-            venta.total_final = int(total_final_str)
-        except ValueError:
-            venta.total_final = total_original
+            # Remove old detalles only after validation passes
+            DetalleVenta.query.filter_by(venta_id=venta.id).delete()
 
-        db.session.commit()
+            for d in detalles:
+                db.session.add(d)
+
+            venta.cliente_nombre = cliente
+            venta.notas = notas
+            venta.total_original = total_original
+            try:
+                venta.total_final = int(total_final_str)
+            except (ValueError, TypeError):
+                venta.total_final = total_original
+
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash('Error al actualizar la venta.', 'danger')
+            return redirect(url_for('ventas.editar_venta', codigo=codigo, venta_id=venta_id))
+
         flash(f'Venta #{venta.numero_orden} actualizada.', 'success')
         return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
 

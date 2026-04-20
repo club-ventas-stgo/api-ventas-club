@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-from flask import Flask
+from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy import inspect, text
@@ -72,6 +72,17 @@ def create_app():
         from flask import flash, redirect, request
         flash('El archivo es demasiado grande (max 16MB).', 'danger')
         return redirect(request.referrer or '/'), 302
+
+    @app.errorhandler(500)
+    def internal_error(e):
+        db.session.rollback()
+        return render_template('error.html', error_code=500,
+                               error_msg='Ocurrió un error interno. Por favor vuelve atrás e intenta de nuevo.'), 500
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return render_template('error.html', error_code=404,
+                               error_msg='La página que buscas no existe.'), 404
 
     with app.app_context():
         db.create_all()

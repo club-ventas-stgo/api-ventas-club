@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-{% set pago_pct = ((venta.monto_pagado / venta.total_final * 100) if venta.total_final > 0 else 0) | int %}
+{% set pago_pct = (((venta.monto_pagado or 0) / venta.total_final * 100) if venta.total_final > 0 else 0) | int %}
 
 <!-- Header -->
 <div class="tile mb-2" style="padding: 0; overflow: hidden;">
