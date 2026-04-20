@@ -77,42 +77,25 @@
     </button>
 </div>
 
-<!-- Navigation tiles -->
+<!-- Panel de Control -->
+<a href="{{ url_for('ventas.control', codigo=stand.codigo_acceso) }}" class="tile-link d-block mb-3">
+    <div class="tile" style="padding: 1.25rem; background: linear-gradient(135deg, #007aff, #5856d6); color: white;">
+        <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center justify-content-center" style="width: 52px; height: 52px; border-radius: 14px; background: rgba(255,255,255,0.2); flex-shrink: 0;">
+                <i class="bi bi-columns-gap" style="font-size: 1.5rem;"></i>
+            </div>
+            <div>
+                <h5 class="mb-0 fw-bold" style="color: white;">Panel de Control</h5>
+                <small style="opacity: 0.85;">Registrar ventas, pedidos, productos, promos y proyectar</small>
+            </div>
+            <i class="bi bi-chevron-right ms-auto" style="font-size: 1.2rem; opacity: 0.7;"></i>
+        </div>
+    </div>
+</a>
+
+<!-- Accesos rapidos -->
 <div class="row g-2">
-    <div class="col-12 mb-1">
-        <a href="{{ url_for('ventas.control', codigo=stand.codigo_acceso) }}" class="tile-link">
-            <div class="tile" style="padding: 1rem; background: linear-gradient(135deg, #007aff, #5856d6); color: white; text-align: center;">
-                <div class="d-flex align-items-center justify-content-center gap-2">
-                    <i class="bi bi-columns-gap" style="font-size: 1.4rem;"></i>
-                    <h6 class="mb-0 fw-bold" style="color: white;">Panel de Control</h6>
-                </div>
-                <small style="opacity: 0.85;">Registrar, ventas, productos y mas - todo en uno</small>
-            </div>
-        </a>
-    </div>
-    <div class="col-6 col-md-4">
-        <a href="{{ url_for('ventas.nueva', codigo=stand.codigo_acceso) }}" class="tile-link">
-            <div class="tile dash-tile">
-                <div class="tile-icon" style="background: linear-gradient(135deg, #34c759, #30d158); color: white;">
-                    <i class="bi bi-cart-plus"></i>
-                </div>
-                <h6>Registrar Ventas</h6>
-                <small>Registrar pedido</small>
-            </div>
-        </a>
-    </div>
-    <div class="col-6 col-md-4">
-        <a href="{{ url_for('ventas.panel', codigo=stand.codigo_acceso) }}" class="tile-link">
-            <div class="tile dash-tile">
-                <div class="tile-icon" style="background: linear-gradient(135deg, #5ac8fa, #0a84ff); color: white;">
-                    <i class="bi bi-receipt"></i>
-                </div>
-                <h6>Ventas</h6>
-                <small>Historial y registros</small>
-            </div>
-        </a>
-    </div>
-    <div class="col-6 col-md-4">
+    <div class="col-6 col-sm-3">
         <a href="{{ url_for('cocina.panel', codigo=stand.codigo_acceso) }}" class="tile-link">
             <div class="tile dash-tile">
                 <div class="tile-icon" style="background: linear-gradient(135deg, #ff3b30, #ff6b6b); color: white;">
@@ -123,51 +106,18 @@
             </div>
         </a>
     </div>
-    <div class="col-6 col-md-4">
-        <a href="{{ url_for('cocina.proyectar', codigo=stand.codigo_acceso) }}" class="tile-link">
-            <div class="tile dash-tile">
-                <div class="tile-icon" style="background: linear-gradient(135deg, #1a1a2e, #16213e); color: white;">
-                    <i class="bi bi-projector"></i>
-                </div>
-                <h6>Proyectar</h6>
-                <small>Pantalla clientes</small>
-            </div>
-        </a>
-    </div>
-    <div class="col-6 col-md-4">
-        <a href="{{ url_for('stand.productos', codigo=stand.codigo_acceso) }}" class="tile-link">
-            <div class="tile dash-tile">
-                <div class="tile-icon" style="background: linear-gradient(135deg, #007aff, #5856d6); color: white;">
-                    <i class="bi bi-box-seam"></i>
-                </div>
-                <h6>Productos</h6>
-                <small>Inventario y precios</small>
-            </div>
-        </a>
-    </div>
-    <div class="col-6 col-md-4">
-        <a href="{{ url_for('stand.promociones', codigo=stand.codigo_acceso) }}" class="tile-link">
-            <div class="tile dash-tile">
-                <div class="tile-icon" style="background: linear-gradient(135deg, #ff9500, #ffcc00); color: white;">
-                    <i class="bi bi-tag"></i>
-                </div>
-                <h6>Promociones</h6>
-                <small>Ofertas activas</small>
-            </div>
-        </a>
-    </div>
-    <div class="col-6 col-md-4">
+    <div class="col-6 col-sm-3">
         <a href="{{ url_for('sesiones.lista', codigo=stand.codigo_acceso) }}" class="tile-link">
             <div class="tile dash-tile">
                 <div class="tile-icon" style="background: linear-gradient(135deg, #5856d6, #af52de); color: white;">
                     <i class="bi bi-calendar-event"></i>
                 </div>
-                <h6>Agendar Sesiones</h6>
+                <h6>Sesiones</h6>
                 <small>Agendar y gestionar</small>
             </div>
         </a>
     </div>
-    <div class="col-6 col-md-4">
+    <div class="col-6 col-sm-3">
         <a href="{{ url_for('registros.index', codigo=stand.codigo_acceso) }}" class="tile-link">
             <div class="tile dash-tile">
                 <div class="tile-icon" style="background: linear-gradient(135deg, #ff9500, #ff6b00); color: white;">
@@ -178,7 +128,7 @@
             </div>
         </a>
     </div>
-    <div class="col-6 col-md-4">
+    <div class="col-6 col-sm-3">
         <div class="tile dash-tile" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modal-ajustes">
             <div class="tile-icon" style="background: linear-gradient(135deg, #8e8e93, #636366); color: white;">
                 <i class="bi bi-gear"></i>

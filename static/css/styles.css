@@ -766,12 +766,25 @@ img {
 
 /* Venta expand inline */
 .venta-expand {
-    animation: slideDown 0.2s ease;
+    animation: fadeIn 0.15s ease;
 }
 
-@keyframes slideDown {
-    from { opacity: 0; max-height: 0; }
-    to { opacity: 1; max-height: 1000px; }
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Day groups inside control panel */
+.tab-panel .day-group {
+    margin-bottom: 8px;
+}
+
+.tab-panel .day-group:hover {
+    transform: none;
+}
+
+.tab-panel .venta-item:hover {
+    background: #f0f4ff;
 }
 
 /* Mobile: hide tab labels */

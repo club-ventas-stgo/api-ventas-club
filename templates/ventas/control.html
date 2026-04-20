@@ -37,44 +37,40 @@
     <form id="form-venta-ctrl">
         <input type="hidden" name="items" id="ctrl-items-json">
 
-        <div class="tile mb-2" style="padding: 0.75rem;">
-            <label class="form-label small fw-bold mb-1"><i class="bi bi-person"></i> Cliente</label>
-            <input type="text" class="form-control" name="cliente_nombre" id="ctrl-cliente" placeholder="Nombre del cliente" maxlength="100" style="border-radius: 10px;">
-        </div>
-
-        {% if promociones_activas %}
-        <div class="tile mb-2" style="padding: 0.5rem 0.75rem; background: #fff8e1; border: 1px solid #ffe082;">
-            <strong class="small"><i class="bi bi-tag-fill text-warning"></i> Promos:</strong>
-            {% for promo in promociones_activas %}
-            <span class="badge bg-warning text-dark">{{ promo.nombre }}</span>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        {% if productos_activos %}
-        <div class="tile mb-2" style="padding: 0.75rem;">
-            <label class="form-label small fw-bold mb-2"><i class="bi bi-box-seam"></i> Productos</label>
-            <div class="row g-2">
-                {% for p in productos_activos %}
-                <div class="col-4 col-sm-3 col-md-3 col-lg-2">
-                    <button type="button" class="btn btn-outline-primary producto-btn w-100 h-100 d-flex flex-column align-items-center justify-content-center {{ 'opacity-50' if p.stock_disponible is not none and p.stock_disponible <= 0 }}"
-                            data-id="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}" data-stock="{{ p.stock_disponible if p.stock_disponible is not none else '' }}"
-                            {{ 'disabled' if p.stock_disponible is not none and p.stock_disponible <= 0 }}>
-                        {% if p.foto %}
-                        <img src="{{ p.foto }}" class="mb-1">
-                        {% endif %}
-                        <small class="fw-bold lh-sm text-center" style="font-size: 0.72rem;">{{ p.nombre }}</small>
-                        <span class="text-success fw-bold" style="font-size: 0.78rem;">${{ '{:,}'.format(p.precio) }}</span>
-                        {% if p.stock_disponible is not none %}
-                        <span class="badge {{ 'bg-success' if p.stock_disponible > 5 else ('bg-warning text-dark' if p.stock_disponible > 0 else 'bg-danger') }}" style="font-size: 0.6rem; border-radius: 6px; margin-top: 2px;">
-                            Stock: {{ p.stock_disponible }}
-                        </span>
-                        {% endif %}
-                        <span class="badge bg-danger rounded-pill badge-qty d-none" id="badge-{{ p.id }}">0</span>
-                    </button>
-                </div>
+        <!-- Cliente + Promos inline -->
+        <div class="d-flex gap-2 mb-2 align-items-center">
+            <input type="text" class="form-control form-control-sm" name="cliente_nombre" id="ctrl-cliente" placeholder="Nombre cliente (opcional)" maxlength="100" style="border-radius: 10px; flex: 1;">
+            {% if promociones_activas %}
+            <div class="d-flex gap-1 flex-shrink-0 flex-wrap">
+                {% for promo in promociones_activas %}
+                <span class="badge bg-warning text-dark" style="font-size: 0.68rem; border-radius: 6px;">{{ promo.nombre }}</span>
                 {% endfor %}
             </div>
+            {% endif %}
+        </div>
+
+        {% if productos_activos %}
+        <!-- Product grid -->
+        <div class="row g-2 mb-2">
+            {% for p in productos_activos %}
+            <div class="col-4 col-sm-3 col-md-3 col-lg-2">
+                <button type="button" class="btn btn-outline-primary producto-btn w-100 h-100 d-flex flex-column align-items-center justify-content-center {{ 'opacity-50' if p.stock_disponible is not none and p.stock_disponible <= 0 }}"
+                        data-id="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}" data-stock="{{ p.stock_disponible if p.stock_disponible is not none else '' }}"
+                        {{ 'disabled' if p.stock_disponible is not none and p.stock_disponible <= 0 }}>
+                    {% if p.foto %}
+                    <img src="{{ p.foto }}" class="mb-1">
+                    {% endif %}
+                    <small class="fw-bold lh-sm text-center" style="font-size: 0.72rem;">{{ p.nombre }}</small>
+                    <span class="text-success fw-bold" style="font-size: 0.78rem;">${{ '{:,}'.format(p.precio) }}</span>
+                    {% if p.stock_disponible is not none %}
+                    <span class="badge {{ 'bg-success' if p.stock_disponible > 5 else ('bg-warning text-dark' if p.stock_disponible > 0 else 'bg-danger') }}" style="font-size: 0.6rem; border-radius: 6px; margin-top: 2px;">
+                        Stock: {{ p.stock_disponible }}
+                    </span>
+                    {% endif %}
+                    <span class="badge bg-danger rounded-pill badge-qty d-none" id="badge-{{ p.id }}">0</span>
+                </button>
+            </div>
+            {% endfor %}
         </div>
         {% else %}
         <div class="tile text-center py-4 mb-2">
@@ -83,42 +79,37 @@
         </div>
         {% endif %}
 
-        <!-- Order summary -->
-        <div id="resumen-sticky">
-            <div class="tile" style="padding: 0; overflow: hidden; border: 2px solid #34c759;">
-                <div style="background: linear-gradient(135deg, #34c759, #30d158); color: white; padding: 0.5rem 0.75rem;" class="d-flex justify-content-between align-items-center">
-                    <strong><i class="bi bi-receipt"></i> Pedido</strong>
-                    <span id="total-display" class="fs-5 fw-bold">$0</span>
+        <!-- Order summary + Payment + Submit combined -->
+        <div class="tile" style="padding: 0; overflow: hidden;" id="resumen-sticky">
+            <div style="background: linear-gradient(135deg, #34c759, #30d158); color: white; padding: 0.5rem 0.75rem;" class="d-flex justify-content-between align-items-center">
+                <strong><i class="bi bi-receipt"></i> Pedido</strong>
+                <span id="total-display" class="fs-5 fw-bold">$0</span>
+            </div>
+            <div id="items-list" style="max-height: 180px; overflow-y: auto; padding: 0.5rem 0.75rem;">
+                <p class="text-muted text-center small mb-0" style="padding: 1rem 0;">Toca los productos para agregar</p>
+            </div>
+            <!-- Payment row inside the same card -->
+            <div style="padding: 0.6rem 0.75rem; border-top: 1px solid #e9ecef; background: #fafafa;">
+                <div class="d-flex gap-2 align-items-center mb-2">
+                    <div class="btn-group flex-shrink-0" role="group">
+                        <input type="radio" class="btn-check" name="metodo_pago" id="ctrl-mp-efectivo" value="efectivo" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="ctrl-mp-efectivo" style="border-radius: 8px 0 0 8px; font-size: 0.78rem;"><i class="bi bi-cash"></i> Efectivo</label>
+                        <input type="radio" class="btn-check" name="metodo_pago" id="ctrl-mp-transferencia" value="transferencia">
+                        <label class="btn btn-outline-secondary btn-sm" for="ctrl-mp-transferencia" style="border-radius: 0 8px 8px 0; font-size: 0.78rem;"><i class="bi bi-phone"></i> Transfer.</label>
+                    </div>
+                    <div class="input-group input-group-sm flex-grow-1">
+                        <span class="input-group-text" style="border-radius: 8px 0 0 8px; font-size: 0.78rem;">$</span>
+                        <input type="number" class="form-control" id="total_final" name="total_final" value="0" min="0" style="border-radius: 0 8px 8px 0;">
+                    </div>
                 </div>
-                <div id="items-list" style="max-height: 200px; overflow-y: auto; padding: 0.5rem 0.75rem;">
-                    <p class="text-muted text-center small mb-0">Toca los productos para agregar</p>
+                <div class="d-flex gap-2 align-items-center">
+                    <input type="text" class="form-control form-control-sm flex-grow-1" name="notas" id="ctrl-notas" placeholder="Notas (opcional)" style="border-radius: 8px; font-size: 0.8rem;">
+                    <button type="submit" class="btn btn-success btn-sm fw-bold flex-shrink-0" id="btn-confirmar" disabled style="border-radius: 10px; padding: 0.4rem 1rem; font-size: 0.85rem;">
+                        <i class="bi bi-check-lg"></i> Confirmar
+                    </button>
                 </div>
             </div>
         </div>
-
-        <!-- Payment -->
-        <div class="tile mt-2 mb-2" style="padding: 0.75rem;">
-            <label class="form-label small fw-bold mb-2"><i class="bi bi-credit-card"></i> Pago</label>
-            <div class="d-flex gap-2 mb-3">
-                <div class="input-group input-group-sm flex-grow-1">
-                    <span class="input-group-text" style="border-radius: 8px 0 0 8px;">$ Total</span>
-                    <input type="number" class="form-control" id="total_final" name="total_final" value="0" min="0" style="border-radius: 0 8px 8px 0;">
-                </div>
-            </div>
-            <div class="btn-group w-100 mb-3" role="group">
-                <input type="radio" class="btn-check" name="metodo_pago" id="ctrl-mp-efectivo" value="efectivo" checked>
-                <label class="btn btn-outline-secondary btn-sm" for="ctrl-mp-efectivo" style="border-radius: 8px 0 0 8px;"><i class="bi bi-cash"></i> Efectivo</label>
-                <input type="radio" class="btn-check" name="metodo_pago" id="ctrl-mp-transferencia" value="transferencia">
-                <label class="btn btn-outline-secondary btn-sm" for="ctrl-mp-transferencia" style="border-radius: 0 8px 8px 0;"><i class="bi bi-phone"></i> Transferencia</label>
-            </div>
-            <label class="form-label small fw-bold mb-1"><i class="bi bi-chat-left-text"></i> Notas</label>
-            <input type="text" class="form-control form-control-sm" name="notas" id="ctrl-notas" placeholder="Notas opcionales" style="border-radius: 8px;">
-        </div>
-
-        <!-- Submit -->
-        <button type="submit" class="btn btn-success w-100 py-3 fw-bold" id="btn-confirmar" disabled style="border-radius: 14px; font-size: 1.1rem;">
-            <i class="bi bi-check-lg"></i> Confirmar Venta
-        </button>
     </form>
 </div>
 
@@ -418,25 +409,23 @@ function filtrarVentas() {
     .then(r => r.text())
     .then(html => {
         document.getElementById('panel-ventas').innerHTML = `
-            <div class="tile filter-bar mb-3" style="padding: 0.5rem 0.75rem;">
-                <div class="d-flex gap-1 align-items-center">
-                    <input type="text" class="form-control form-control-sm flex-fill" id="ctrl-buscar" placeholder="Buscar cliente o #orden..." style="border-radius: 8px; min-width: 0;" oninput="buscarVentasControl(this.value)">
-                    <select id="ctrl-filtro-estado" class="form-select form-select-sm" style="border-radius: 8px; min-width: 0; max-width: 110px;" onchange="filtrarVentas()">
-                        <option value="">Entrega</option>
-                        <option value="pendiente" ${estado==='pendiente'?'selected':''}>Pendiente</option>
-                        <option value="en_preparacion" ${estado==='en_preparacion'?'selected':''}>En Prep.</option>
-                        <option value="listo" ${estado==='listo'?'selected':''}>Listo</option>
-                        <option value="entregado" ${estado==='entregado'?'selected':''}>Entregado</option>
-                    </select>
-                    <select id="ctrl-filtro-pago" class="form-select form-select-sm" style="border-radius: 8px; min-width: 0; max-width: 100px;" onchange="filtrarVentas()">
-                        <option value="">Pago</option>
-                        <option value="pendiente" ${pago==='pendiente'?'selected':''}>Pendiente</option>
-                        <option value="parcial" ${pago==='parcial'?'selected':''}>Parcial</option>
-                        <option value="pagado" ${pago==='pagado'?'selected':''}>Pagado</option>
-                    </select>
-                </div>
+            <div class="d-flex gap-1 align-items-center mb-2" style="padding: 0 2px;">
+                <input type="text" class="form-control form-control-sm flex-fill" id="ctrl-buscar" placeholder="Buscar cliente o #orden..." style="border-radius: 10px; min-width: 0;" oninput="buscarVentasControl(this.value)">
+                <select id="ctrl-filtro-estado" class="form-select form-select-sm" style="border-radius: 10px; min-width: 0; max-width: 110px;" onchange="filtrarVentas()">
+                    <option value="">Entrega</option>
+                    <option value="pendiente" ${estado==='pendiente'?'selected':''}>Pendiente</option>
+                    <option value="en_preparacion" ${estado==='en_preparacion'?'selected':''}>En Prep.</option>
+                    <option value="listo" ${estado==='listo'?'selected':''}>Listo</option>
+                    <option value="entregado" ${estado==='entregado'?'selected':''}>Entregado</option>
+                </select>
+                <select id="ctrl-filtro-pago" class="form-select form-select-sm" style="border-radius: 10px; min-width: 0; max-width: 100px;" onchange="filtrarVentas()">
+                    <option value="">Pago</option>
+                    <option value="pendiente" ${pago==='pendiente'?'selected':''}>Pendiente</option>
+                    <option value="parcial" ${pago==='parcial'?'selected':''}>Parcial</option>
+                    <option value="pagado" ${pago==='pagado'?'selected':''}>Pagado</option>
+                </select>
             </div>
-            <div id="ctrl-buscar-results" class="d-none mb-3"></div>
+            <div id="ctrl-buscar-results" class="d-none mb-2"></div>
             <div id="ctrl-ventas-list">${html}</div>
         `;
     });
@@ -483,23 +472,31 @@ function expandVenta(ventaId, el) {
         }
 
         expandDiv.innerHTML = `
-            <div class="mt-2 pt-2 border-top" onclick="event.stopPropagation();">
-                <table class="table table-sm mb-2" style="font-size:0.8rem;">
-                    <thead><tr><th></th><th>Producto</th><th class="text-end">Precio</th><th class="text-end">Subtotal</th></tr></thead>
-                    <tbody>${detallesHtml}</tbody>
-                    <tfoot><tr><td colspan="3" class="text-end fw-bold">Total:</td><td class="text-end fw-bold">$${v.total_final.toLocaleString('es-CL')}</td></tr></tfoot>
-                </table>
+            <div class="mt-2 pt-2 border-top" onclick="event.stopPropagation();" style="background: #f9fafb; margin: 0 -1rem; padding: 0.75rem 1rem 0.5rem; border-radius: 0 0 12px 12px;">
+                <!-- Items list compact -->
                 <div class="mb-2">
-                    <small class="fw-bold text-muted">Entrega:</small><br>
+                    ${v.detalles.map(d => `
+                        <div class="d-flex justify-content-between align-items-center py-1" style="font-size:0.82rem; border-bottom: 1px solid #eee;">
+                            <span>${d.cantidad}x <strong>${d.nombre_producto}</strong></span>
+                            <span class="text-muted">$${d.subtotal.toLocaleString('es-CL')}</span>
+                        </div>
+                    `).join('')}
+                    <div class="d-flex justify-content-between pt-1" style="font-size:0.85rem;">
+                        <strong>Total</strong>
+                        <strong class="text-success">$${v.total_final.toLocaleString('es-CL')}</strong>
+                    </div>
+                </div>
+                <!-- Actions row -->
+                <div class="d-flex flex-wrap gap-1 align-items-center mb-2">
+                    <small class="text-muted fw-bold me-1" style="font-size:0.7rem;">Entrega:</small>
                     ${estadoBtns}
                 </div>
-                <div class="mb-2">
-                    <small class="fw-bold text-muted">Pago:</small> ${pagoHtml}
+                <div class="d-flex flex-wrap gap-1 align-items-center mb-2">
+                    <small class="text-muted fw-bold me-1" style="font-size:0.7rem;">Pago:</small>
+                    ${pagoHtml}
                 </div>
-                ${v.notas ? `<div class="mb-2"><small class="fw-bold text-muted">Notas:</small> <small>${v.notas}</small></div>` : ''}
-                <div class="d-flex gap-1">
-                    <a href="${BASE}/ventas/${v.id}/editar" class="btn btn-sm btn-outline-secondary" style="border-radius:8px; font-size:0.7rem;" target="_blank"><i class="bi bi-pencil"></i> Editar pedido</a>
-                </div>
+                ${v.notas ? `<div class="mb-2" style="font-size:0.8rem;"><i class="bi bi-chat-left-text text-muted"></i> <span class="text-muted">${v.notas}</span></div>` : ''}
+                <a href="${BASE}/ventas/${v.id}/editar" class="btn btn-sm btn-outline-secondary w-100" style="border-radius:10px; font-size:0.75rem;" target="_blank"><i class="bi bi-pencil"></i> Editar pedido</a>
             </div>
         `;
     });
