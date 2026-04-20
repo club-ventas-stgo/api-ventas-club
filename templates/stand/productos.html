@@ -26,10 +26,17 @@
             {% endif %}
             <div style="padding: 0.6rem;">
                 <h6 class="mb-0 text-truncate" style="font-size: 0.85rem;">{{ p.nombre }}</h6>
-                <span class="fw-bold text-success">${{ '{:,}'.format(p.precio) }}</span>
-                {% if not p.activo %}
-                <span class="badge bg-danger" style="font-size: 0.6rem;">Off</span>
-                {% endif %}
+                <div class="d-flex align-items-center gap-1">
+                    <span class="fw-bold text-success">${{ '{:,}'.format(p.precio) }}</span>
+                    {% if p.stock is not none %}
+                    <span class="badge {{ 'bg-success' if p.stock_disponible > 5 else ('bg-warning text-dark' if p.stock_disponible > 0 else 'bg-danger') }}" style="font-size: 0.6rem; border-radius: 6px;">
+                        {{ p.stock_disponible }}/{{ p.stock }}
+                    </span>
+                    {% endif %}
+                    {% if not p.activo %}
+                    <span class="badge bg-danger" style="font-size: 0.6rem;">Off</span>
+                    {% endif %}
+                </div>
                 <div class="d-flex gap-1 mt-1">
                     <button class="btn btn-sm btn-outline-primary flex-grow-1" data-bs-toggle="modal" data-bs-target="#editar-{{ p.id }}" style="border-radius: 8px; font-size: 0.7rem;">
                         <i class="bi bi-pencil"></i> Editar
@@ -61,6 +68,13 @@
                         <div class="mb-2">
                             <label class="form-label small fw-semibold">Precio ($)</label>
                             <input type="number" class="form-control" name="precio" value="{{ p.precio }}" min="0" style="border-radius: 12px;">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold">Stock (vacio = sin limite)</label>
+                            <input type="number" class="form-control" name="stock" value="{{ p.stock if p.stock is not none else '' }}" min="0" placeholder="Sin limite" style="border-radius: 12px;">
+                            {% if p.stock is not none %}
+                            <small class="text-muted">Vendidos: {{ p.stock_vendido }} | Disponible: {{ p.stock_disponible }}</small>
+                            {% endif %}
                         </div>
                         <div>
                             <label class="form-label small fw-semibold">Nueva Foto</label>
@@ -105,6 +119,10 @@
                     <div class="mb-2">
                         <label class="form-label small fw-semibold">Precio ($)</label>
                         <input type="number" class="form-control" name="precio" required min="0" placeholder="500" style="border-radius: 12px;">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Stock (opcional, vacio = sin limite)</label>
+                        <input type="number" class="form-control" name="stock" min="0" placeholder="Ej: 50" style="border-radius: 12px;">
                     </div>
                     <div>
                         <label class="form-label small fw-semibold">Foto (opcional)</label>

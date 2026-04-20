@@ -94,6 +94,14 @@ def productos(codigo):
             flash(f'Ya existe un producto "{nombre}".', 'warning')
             return redirect(url_for('stand.productos', codigo=codigo))
 
+        stock = request.form.get('stock', '').strip()
+        stock_val = None
+        if stock:
+            try:
+                stock_val = int(stock)
+            except ValueError:
+                pass
+
         foto = None
         if 'foto' in request.files and request.files['foto'].filename:
             try:
@@ -103,7 +111,7 @@ def productos(codigo):
                 return redirect(url_for('stand.productos', codigo=codigo))
 
         try:
-            producto = Producto(stand_id=stand.id, nombre=nombre, precio=precio, foto=foto)
+            producto = Producto(stand_id=stand.id, nombre=nombre, precio=precio, stock=stock_val, foto=foto)
             db.session.add(producto)
             db.session.commit()
         except Exception:
@@ -133,6 +141,15 @@ def editar_producto(codigo, producto_id):
     except ValueError:
         flash('El precio debe ser un número entero.', 'danger')
         return redirect(url_for('stand.productos', codigo=codigo))
+
+    stock = request.form.get('stock', '').strip()
+    if stock == '':
+        producto.stock = None
+    else:
+        try:
+            producto.stock = int(stock)
+        except ValueError:
+            pass
 
     if 'foto' in request.files and request.files['foto'].filename:
         try:

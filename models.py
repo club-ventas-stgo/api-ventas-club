@@ -27,9 +27,24 @@ class Producto(db.Model):
     stand_id = db.Column(db.Integer, db.ForeignKey('stands.id'), nullable=False)
     nombre = db.Column(db.String(100), nullable=False)
     precio = db.Column(db.Integer, nullable=False)
+    stock = db.Column(db.Integer, nullable=True)  # NULL = sin limite de stock
     foto = db.Column(db.Text)
     activo = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    @property
+    def stock_vendido(self):
+        """Cantidad total vendida de este producto."""
+        from sqlalchemy import func
+        result = db.session.query(func.coalesce(func.sum(DetalleVenta.cantidad), 0)).filter_by(producto_id=self.id).scalar()
+        return result
+
+    @property
+    def stock_disponible(self):
+        """Stock restante. None si no tiene limite."""
+        if self.stock is None:
+            return None
+        return max(0, self.stock - self.stock_vendido)
 
 
 class Promocion(db.Model):

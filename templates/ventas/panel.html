@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Panel - {{ stand.nombre }}{% endblock %}
+
+{% block nav_items %}
+<a class="nav-link text-white py-0" href="{{ url_for('stand.dashboard', codigo=stand.codigo_acceso) }}">
+    <i class="bi bi-arrow-left"></i> {{ stand.nombre }}
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Tabs -->
+<div class="panel-tabs mb-3">
+    <button class="panel-tab active" id="tab-ventas" onclick="switchTab('ventas')">
+        <i class="bi bi-receipt"></i> Ventas
+    </button>
+    <button class="panel-tab" id="tab-registros" onclick="switchTab('registros')">
+        <i class="bi bi-folder2-open"></i> Registros
+    </button>
+</div>
+
+<!-- Tab content -->
+<div id="tab-content-ventas">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-receipt"></i> Ventas</h6>
+        <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-outline-secondary" style="border-radius: 8px; font-size: 0.75rem;" onclick="document.getElementById('search-box').classList.toggle('d-none')">
+                <i class="bi bi-search"></i>
+            </button>
+        </div>
+    </div>
+    <!-- Search box -->
+    <div class="tile mb-2 d-none" id="search-box" style="padding: 0.5rem 0.75rem;">
+        <div class="input-group input-group-sm">
+            <span class="input-group-text" style="border-radius: 8px 0 0 8px;"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" id="search-input" placeholder="Buscar por nombre o # orden..." style="border-radius: 0 8px 8px 0;" oninput="searchVentas(this.value)">
+        </div>
+    </div>
+    <div id="ventas-content">
+        {% include 'ventas/_ventas_partial.html' %}
+    </div>
+</div>
+
+<div id="tab-content-registros" class="d-none">
+    <div id="registros-content">
+        <div class="text-center py-4">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <small class="text-muted ms-2">Cargando registros...</small>
+        </div>
+    </div>
+</div>
+
+<!-- FAB new sale -->
+<a href="{{ url_for('ventas.nueva', codigo=stand.codigo_acceso) }}" class="fab btn btn-success">
+    <i class="bi bi-plus-lg"></i>
+</a>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const codigoStand = "{{ stand.codigo_acceso }}";
+let registrosLoaded = false;
+
+function switchTab(tab) {
+    document.getElementById('tab-ventas').classList.toggle('active', tab === 'ventas');
+    document.getElementById('tab-registros').classList.toggle('active', tab === 'registros');
+    document.getElementById('tab-content-ventas').classList.toggle('d-none', tab !== 'ventas');
+    document.getElementById('tab-content-registros').classList.toggle('d-none', tab !== 'registros');
+
+    if (tab === 'registros' && !registrosLoaded) {
+        fetch(`/s/${codigoStand}/registros/partial`)
+            .then(r => r.text())
+            .then(html => {
+                document.getElementById('registros-content').innerHTML = html;
+                registrosLoaded = true;
+            });
+    }
+}
+
+function filterVentas(event) {
+    event.preventDefault();
+    const form = document.getElementById('filter-form');
+    const params = new URLSearchParams(new FormData(form)).toString();
+    fetch(`/s/${codigoStand}/ventas/partial?${params}`)
+        .then(r => r.text())
+        .then(html => {
+            document.getElementById('ventas-content').innerHTML = html;
+        });
+    return false;
+}
+
+function searchVentas(query) {
+    const items = document.querySelectorAll('.venta-item');
+    const q = query.toLowerCase().trim();
+    items.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = (q === '' || text.includes(q)) ? '' : 'none';
+    });
+}
+
+// Init tab from URL
+const urlTab = new URLSearchParams(window.location.search).get('tab');
+if (urlTab === 'registros') switchTab('registros');
+</script>
+{% endblock %}

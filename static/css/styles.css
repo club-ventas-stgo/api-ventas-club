@@ -333,6 +333,142 @@ body {
     border: none;
 }
 
+/* ===== PANEL TABS ===== */
+.panel-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--tile-bg);
+    border-radius: var(--tile-radius);
+    box-shadow: var(--tile-shadow);
+    padding: 4px;
+    position: sticky;
+    top: calc(var(--nav-height) + 8px);
+    z-index: 20;
+}
+
+.panel-tab {
+    flex: 1;
+    padding: 0.5rem;
+    border: none;
+    border-radius: 14px;
+    background: transparent;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.panel-tab.active {
+    background: linear-gradient(135deg, #007aff, #5856d6);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+}
+
+.panel-tab:hover:not(.active) {
+    background: #f0f2f5;
+    color: #1a1a2e;
+}
+
+/* ===== DELIVERY CHECKLIST ===== */
+.delivery-checklist {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.delivery-step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+}
+
+.delivery-step::after {
+    content: '';
+    position: absolute;
+    top: 16px;
+    left: 60%;
+    right: -40%;
+    height: 3px;
+    background: #e0e0e0;
+    z-index: 0;
+}
+
+.delivery-step:last-child::after { display: none; }
+
+.delivery-step.done::after { background: #34c759; }
+
+.delivery-check {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    border: 2px solid #e0e0e0;
+    background: white;
+    color: #aaa;
+    z-index: 1;
+    cursor: default;
+}
+
+.delivery-check.checked {
+    background: #34c759;
+    border-color: #34c759;
+    color: white;
+}
+
+.delivery-check.disabled {
+    opacity: 0.4;
+}
+
+button.delivery-check {
+    cursor: pointer;
+    border: 2px solid #007aff;
+    color: #007aff;
+    background: #e8f4ff;
+    animation: pulse-border 1.5s infinite;
+}
+
+button.delivery-check:hover {
+    background: #007aff;
+    color: white;
+}
+
+@keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(0, 122, 255, 0); }
+}
+
+.delivery-label {
+    font-size: 0.62rem;
+    text-align: center;
+    color: #666;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.delivery-step.done .delivery-label { color: #34c759; }
+.delivery-step.next .delivery-label { color: #007aff; }
+
+/* ===== PAGO CHECKS ===== */
+.pago-check {
+    transition: border-color 0.2s;
+}
+
+.pago-check:has(input:checked) {
+    border-color: #34c759 !important;
+    background: #f0fff4;
+}
+
 /* ===== COCINA ===== */
 .cocina-card {
     border-radius: var(--tile-radius) !important;

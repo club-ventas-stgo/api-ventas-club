@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Editar Venta #{{ venta.numero_orden }}{% endblock %}
+
+{% block nav_items %}
+<a class="nav-link text-white py-0" href="{{ url_for('ventas.detalle', codigo=stand.codigo_acceso, venta_id=venta.id) }}">
+    <i class="bi bi-arrow-left"></i> Venta #{{ venta.numero_orden }}
+</a>
+{% endblock %}
+
+{% block content %}
+<form method="POST" id="form-editar">
+    <input type="hidden" name="items" id="items-json">
+
+    <div class="tile mb-2" style="padding: 0; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #5856d6, #007aff); color: white; padding: 0.5rem 0.75rem;">
+            <strong><i class="bi bi-pencil"></i> Editar Venta #{{ venta.numero_orden }}</strong>
+        </div>
+        <div style="padding: 0.75rem;">
+            <div class="mb-2">
+                <label class="form-label small fw-bold mb-1"><i class="bi bi-person"></i> Cliente</label>
+                <input type="text" class="form-control" name="cliente_nombre" value="{{ venta.cliente_nombre or '' }}" placeholder="Nombre del cliente" maxlength="100" style="border-radius: 10px;">
+            </div>
+            <div class="mb-2">
+                <label class="form-label small fw-bold mb-1"><i class="bi bi-chat-left-text"></i> Notas</label>
+                <input type="text" class="form-control form-control-sm" name="notas" value="{{ venta.notas or '' }}" placeholder="Notas opcionales" style="border-radius: 8px;">
+            </div>
+        </div>
+    </div>
+
+    <!-- Product grid -->
+    {% if productos %}
+    <div class="tile mb-2" style="padding: 0.75rem;">
+        <label class="form-label small fw-bold mb-2"><i class="bi bi-box-seam"></i> Productos</label>
+        <div class="row g-2">
+            {% for p in productos %}
+            <div class="col-4 col-sm-3 col-md-3 col-lg-2">
+                <button type="button" class="btn btn-outline-primary producto-btn w-100 h-100 d-flex flex-column align-items-center justify-content-center"
+                        data-id="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}">
+                    {% if p.foto %}
+                    <img src="{{ p.foto }}" class="mb-1">
+                    {% endif %}
+                    <small class="fw-bold lh-sm text-center" style="font-size: 0.72rem;">{{ p.nombre }}</small>
+                    <span class="text-success fw-bold" style="font-size: 0.78rem;">${{ '{:,}'.format(p.precio) }}</span>
+                    {% if p.stock_disponible is not none %}
+                    <span class="badge {{ 'bg-success' if p.stock_disponible > 5 else ('bg-warning text-dark' if p.stock_disponible > 0 else 'bg-danger') }}" style="font-size: 0.6rem; border-radius: 6px; margin-top: 2px;">
+                        Stock: {{ p.stock_disponible }}
+                    </span>
+                    {% endif %}
+                    <span class="badge bg-danger rounded-pill badge-qty d-none" id="badge-{{ p.id }}">0</span>
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Order summary -->
+    <div id="resumen-sticky">
+        <div class="tile" style="padding: 0; overflow: hidden; border: 2px solid #5856d6;">
+            <div style="background: linear-gradient(135deg, #5856d6, #007aff); color: white; padding: 0.5rem 0.75rem;" class="d-flex justify-content-between align-items-center">
+                <strong><i class="bi bi-receipt"></i> Pedido Editado</strong>
+                <span id="total-display" class="fs-5 fw-bold">$0</span>
+            </div>
+            <div id="items-list" style="max-height: 200px; overflow-y: auto; padding: 0.5rem 0.75rem;">
+                <p class="text-muted text-center small mb-0">Cargando...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total override -->
+    <div class="tile mt-2 mb-2" style="padding: 0.75rem;">
+        <div class="input-group input-group-sm">
+            <span class="input-group-text" style="border-radius: 8px 0 0 8px;">$ Total Final</span>
+            <input type="number" class="form-control" id="total_final" name="total_final" value="{{ venta.total_final }}" min="0" style="border-radius: 0 8px 8px 0;">
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100 py-3 fw-bold" id="btn-guardar" style="border-radius: 14px; font-size: 1.1rem;">
+        <i class="bi bi-check-lg"></i> Guardar Cambios
+    </button>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const items = {};
+
+// Load existing items
+{% for d in venta.detalles %}
+items[{{ d.producto_id }}] = {
+    producto_id: {{ d.producto_id }},
+    nombre: {{ d.nombre_producto|tojson }},
+    precio: {{ d.precio_unitario }},
+    cantidad: {{ d.cantidad }}
+};
+{% endfor %}
+
+function fmt(n) { return '$' + n.toLocaleString('es-CL'); }
+
+function render() {
+    const list = document.getElementById('items-list');
+    const keys = Object.keys(items);
+
+    document.querySelectorAll('.badge-qty').forEach(b => b.classList.add('d-none'));
+    keys.forEach(id => {
+        const badge = document.getElementById('badge-' + id);
+        if (badge) { badge.textContent = items[id].cantidad; badge.classList.remove('d-none'); }
+    });
+
+    if (keys.length === 0) {
+        list.innerHTML = '<p class="text-muted text-center small mb-0">Sin productos</p>';
+        document.getElementById('total-display').textContent = '$0';
+        return;
+    }
+
+    let html = '', total = 0, totalUnidades = 0;
+    keys.forEach(id => {
+        const item = items[id], sub = item.precio * item.cantidad;
+        total += sub;
+        totalUnidades += item.cantidad;
+        html += `
+        <div class="d-flex align-items-center justify-content-between py-1 border-bottom">
+            <div class="flex-grow-1 me-2">
+                <strong style="font-size:0.82rem;">${item.nombre}</strong>
+                <div class="d-flex align-items-center gap-1 mt-1">
+                    <span class="text-muted" style="font-size:0.7rem;">$</span>
+                    <input type="number" class="form-control form-control-sm" value="${item.precio}" min="0"
+                           onchange="cambiarPrecio(${id}, this.value)" style="width:70px; height:24px; font-size:0.75rem; padding:0 4px; border-radius:6px;">
+                    <span class="text-muted" style="font-size:0.72rem;">x${item.cantidad} = ${fmt(sub)}</span>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                <button type="button" class="btn btn-outline-danger btn-qty" onclick="cambiar(${id},-1)">-</button>
+                <span class="fw-bold" style="min-width:18px;text-align:center;font-size:0.9rem;">${item.cantidad}</span>
+                <button type="button" class="btn btn-outline-success btn-qty" onclick="cambiar(${id},1)">+</button>
+            </div>
+        </div>`;
+    });
+
+    html += `<div class="d-flex justify-content-between pt-1" style="font-size:0.75rem;">
+        <span class="text-muted">${keys.length} productos, ${totalUnidades} unidades</span>
+        <strong class="text-success">${fmt(total)}</strong>
+    </div>`;
+
+    list.innerHTML = html;
+    document.getElementById('total-display').textContent = fmt(total);
+    document.getElementById('total_final').value = total;
+}
+
+function cambiar(id, delta) {
+    if (items[id]) { items[id].cantidad += delta; if (items[id].cantidad <= 0) delete items[id]; render(); }
+}
+
+function cambiarPrecio(id, valor) {
+    if (items[id]) { items[id].precio = Math.max(0, parseInt(valor) || 0); render(); }
+}
+
+document.querySelectorAll('.producto-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        if (items[id]) { items[id].cantidad++; }
+        else { items[id] = { producto_id: parseInt(id), nombre: this.dataset.nombre, precio: parseInt(this.dataset.precio), cantidad: 1 }; }
+        render();
+    });
+});
+
+document.getElementById('form-editar').addEventListener('submit', function() {
+    document.getElementById('items-json').value = JSON.stringify(Object.values(items).map(i => ({producto_id: i.producto_id, cantidad: i.cantidad, precio: i.precio})));
+});
+
+// Initial render
+render();
+</script>
+{% endblock %}

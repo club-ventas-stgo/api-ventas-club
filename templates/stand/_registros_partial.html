@@ -1,0 +1,66 @@
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h6 class="mb-0 fw-bold"><i class="bi bi-folder2-open"></i> Registros Diarios</h6>
+    {% if dias %}
+    <a href="{{ url_for('registros.exportar_todo_excel', codigo=stand.codigo_acceso) }}"
+       class="btn btn-sm btn-success" style="border-radius: 10px; font-size: 0.75rem;">
+        <i class="bi bi-file-earmark-excel"></i> Exportar
+    </a>
+    {% endif %}
+</div>
+
+{% if dias %}
+<!-- Summary -->
+<div class="tile mb-3" style="padding: 0; overflow: hidden;">
+    <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); color: white; padding: 0.5rem 0.75rem;" class="d-flex justify-content-between align-items-center">
+        <strong><i class="bi bi-bar-chart"></i> Resumen</strong>
+        <span class="badge bg-light text-dark" style="border-radius: 8px; font-size: 0.7rem;">{{ total_dias }} {{ 'dia' if total_dias == 1 else 'dias' }}</span>
+    </div>
+    <div style="padding: 0.6rem 0.75rem;">
+        <div class="row text-center g-2">
+            <div class="col-4">
+                <div class="fw-bold text-success" style="font-size: clamp(0.85rem, 3vw, 1.1rem);">${{ '{:,}'.format(total_general) }}</div>
+                <div class="text-muted" style="font-size: 0.62rem; text-transform: uppercase;">Total</div>
+            </div>
+            <div class="col-4">
+                <div class="fw-bold" style="font-size: clamp(0.85rem, 3vw, 1.1rem); color: #5856d6;">{{ total_dias }}</div>
+                <div class="text-muted" style="font-size: 0.62rem; text-transform: uppercase;">Dias</div>
+            </div>
+            <div class="col-4">
+                <div class="fw-bold" style="font-size: clamp(0.85rem, 3vw, 1.1rem); color: #007aff;">${{ '{:,}'.format((total_general / total_dias) | int) }}</div>
+                <div class="text-muted" style="font-size: 0.62rem; text-transform: uppercase;">Promedio</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for dia in dias %}
+<div class="tile mb-2" style="padding: 0; overflow: hidden; cursor: pointer;"
+     onclick="window.location.href='/s/{{ stand.codigo_acceso }}/registros/{{ dia.fecha }}'">
+    <div class="d-flex align-items-center" style="padding: 0.6rem 0.75rem;">
+        <div class="me-2 d-flex align-items-center justify-content-center flex-shrink-0"
+             style="width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #ff9500, #ffcc00);">
+            <i class="bi bi-folder-fill text-white" style="font-size: 1.1rem;"></i>
+        </div>
+        <div class="flex-grow-1">
+            <div class="fw-bold" style="font-size: 0.85rem;">{{ dia.fecha_formato }}</div>
+            <div class="d-flex gap-2" style="font-size: 0.7rem;">
+                <span class="text-muted"><i class="bi bi-receipt"></i> {{ dia.total_ventas }}</span>
+                {% if dia.pendiente > 0 %}
+                <span class="text-danger"><i class="bi bi-exclamation-circle"></i> ${{ '{:,}'.format(dia.pendiente) }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="text-end flex-shrink-0 ms-2">
+            <div class="fw-bold text-success" style="font-size: 0.95rem;">${{ '{:,}'.format(dia.total_recaudado) }}</div>
+        </div>
+        <i class="bi bi-chevron-right text-muted ms-1" style="font-size: 0.8rem;"></i>
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="tile text-center py-4">
+    <i class="bi bi-folder text-muted" style="font-size: 2rem;"></i>
+    <p class="text-muted mt-1 mb-0 small">No hay registros aun.</p>
+</div>
+{% endif %}

@@ -2,9 +2,6 @@
 {% block title %}{{ stand.nombre }}{% endblock %}
 
 {% block nav_items %}
-<span class="navbar-text small text-light">
-    <i class="bi bi-key"></i> {{ stand.codigo_acceso }}
-</span>
 {% endblock %}
 
 {% block content %}
@@ -94,7 +91,7 @@
         </a>
     </div>
     <div class="col-6 col-md-4">
-        <a href="{{ url_for('ventas.lista', codigo=stand.codigo_acceso) }}" class="tile-link">
+        <a href="{{ url_for('ventas.panel', codigo=stand.codigo_acceso) }}" class="tile-link">
             <div class="tile dash-tile">
                 <div class="tile-icon" style="background: linear-gradient(135deg, #5ac8fa, #0a84ff); color: white;">
                     <i class="bi bi-receipt"></i>
@@ -112,6 +109,17 @@
                 </div>
                 <h6>Cocina</h6>
                 <small>Pedidos en curso</small>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-md-4">
+        <a href="{{ url_for('cocina.proyectar', codigo=stand.codigo_acceso) }}" class="tile-link">
+            <div class="tile dash-tile">
+                <div class="tile-icon" style="background: linear-gradient(135deg, #1a1a2e, #16213e); color: white;">
+                    <i class="bi bi-projector"></i>
+                </div>
+                <h6>Proyectar</h6>
+                <small>Pantalla clientes</small>
             </div>
         </a>
     </div>
@@ -180,6 +188,15 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Codigo de Acceso</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control code-input" value="{{ stand.codigo_acceso }}" readonly style="border-radius: 12px 0 0 12px; background: #f8f9fa;">
+                            <button type="button" class="btn btn-outline-secondary" onclick="navigator.clipboard.writeText('{{ stand.codigo_acceso }}')" style="border-radius: 0 12px 12px 0;">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label small fw-semibold">Nombre</label>
                         <input type="text" class="form-control" name="nombre" value="{{ stand.nombre }}" maxlength="100" style="border-radius: 12px;">

@@ -1,12 +1,15 @@
 import io
 from collections import OrderedDict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from flask import Blueprint, render_template, send_file, abort, request, redirect, url_for, flash
 from sqlalchemy import func
 from app import db
 from models import Venta, SesionVenta
 
 from routes.stand import get_stand_or_404
+
+CHILE_TZ = ZoneInfo('America/Santiago')
 
 registros_bp = Blueprint('registros', __name__, url_prefix='/s')
 
@@ -115,7 +118,8 @@ def index(codigo):
 
     dias_dict = OrderedDict()
     for v in todas_ventas:
-        dia = v.created_at.strftime('%Y-%m-%d')
+        local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
+        dia = local_dt.strftime('%Y-%m-%d')
         if dia not in dias_dict:
             dias_dict[dia] = {'total_ventas': 0, 'total_recaudado': 0, 'total_pagado': 0}
         dias_dict[dia]['total_ventas'] += 1
@@ -137,6 +141,40 @@ def index(codigo):
     total_dias = len(dias)
 
     return render_template('stand/registros.html', stand=stand, dias=dias,
+                           total_general=total_general, total_dias=total_dias)
+
+
+@registros_bp.route('/<codigo>/registros/partial')
+def index_partial(codigo):
+    stand = get_stand_or_404(codigo)
+
+    todas_ventas = stand.ventas.order_by(Venta.created_at.desc()).all()
+
+    dias_dict = OrderedDict()
+    for v in todas_ventas:
+        local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
+        dia = local_dt.strftime('%Y-%m-%d')
+        if dia not in dias_dict:
+            dias_dict[dia] = {'total_ventas': 0, 'total_recaudado': 0, 'total_pagado': 0}
+        dias_dict[dia]['total_ventas'] += 1
+        dias_dict[dia]['total_recaudado'] += v.total_final
+        dias_dict[dia]['total_pagado'] += v.monto_pagado
+
+    dias = []
+    for fecha_str, data in dias_dict.items():
+        dias.append({
+            'fecha': fecha_str,
+            'fecha_formato': formato_fecha(fecha_str),
+            'total_ventas': data['total_ventas'],
+            'total_recaudado': data['total_recaudado'],
+            'total_pagado': data['total_pagado'],
+            'pendiente': data['total_recaudado'] - data['total_pagado'],
+        })
+
+    total_general = sum(d['total_recaudado'] for d in dias)
+    total_dias = len(dias)
+
+    return render_template('stand/_registros_partial.html', stand=stand, dias=dias,
                            total_general=total_general, total_dias=total_dias)
 
 

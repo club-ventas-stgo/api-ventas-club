@@ -192,7 +192,7 @@
                     {% if v.cliente_nombre %}
                     <small class="text-muted">{{ v.cliente_nombre }}</small>
                     {% endif %}
-                    <small class="text-muted">{{ v.created_at.strftime('%H:%M') }}</small>
+                    <small class="text-muted">{{ v.created_at|local_time('%H:%M') }}</small>
                 </div>
                 <div style="font-size: 0.78rem;">
                     {% for d in v.detalles %}

@@ -1,4 +1,6 @@
 import os
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -28,6 +30,24 @@ def create_app():
     migrate.init_app(app, db)
 
     import models  # noqa: F401 - ensure models are loaded for migrations
+
+    CHILE_TZ = ZoneInfo('America/Santiago')
+
+    @app.template_filter('local_time')
+    def local_time_filter(dt, fmt='%H:%M'):
+        if dt is None:
+            return ''
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(CHILE_TZ).strftime(fmt)
+
+    @app.template_filter('local_date')
+    def local_date_filter(dt, fmt='%Y-%m-%d'):
+        if dt is None:
+            return ''
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(CHILE_TZ).strftime(fmt)
 
     from routes.main import main_bp
     from routes.stand import stand_bp

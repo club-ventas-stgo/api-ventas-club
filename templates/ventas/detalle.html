@@ -2,7 +2,7 @@
 {% block title %}Venta #{{ venta.numero_orden }}{% endblock %}
 
 {% block nav_items %}
-<a class="nav-link text-white py-0" href="{{ url_for('ventas.lista', codigo=stand.codigo_acceso) }}">
+<a class="nav-link text-white py-0" href="{{ url_for('ventas.panel', codigo=stand.codigo_acceso) }}">
     <i class="bi bi-arrow-left"></i> Ventas
 </a>
 {% endblock %}
@@ -10,162 +10,219 @@
 {% block content %}
 {% set pago_pct = ((venta.monto_pagado / venta.total_final * 100) if venta.total_final > 0 else 0) | int %}
 
-<div class="row g-3">
-    <!-- Order detail tile -->
-    <div class="col-12 col-lg-7">
-        <div class="tile" style="padding: 0; overflow: hidden;">
-            <div style="background: linear-gradient(135deg, #007aff, #5856d6); color: white; padding: 0.6rem 1rem;" class="d-flex justify-content-between align-items-center">
-                <strong>Venta #{{ venta.numero_orden }}</strong>
-                <small>{{ venta.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
-            </div>
-            <div style="padding: 0.75rem 1rem;">
-                {% if venta.cliente_nombre %}
-                <p class="mb-1"><i class="bi bi-person"></i> <strong>{{ venta.cliente_nombre }}</strong></p>
-                {% endif %}
-                <p class="mb-2 small text-muted"><i class="bi bi-credit-card"></i> {{ venta.metodo_pago | capitalize }}</p>
-
-                <!-- Status badges -->
-                <div class="d-flex gap-2 mb-2">
-                    {% if venta.estado_entrega == 'entregado' %}
-                    <span class="badge bg-success" style="border-radius: 8px; font-size: 0.75rem;"><i class="bi bi-check-circle-fill"></i> Entregado</span>
-                    {% elif venta.estado_entrega == 'listo' %}
-                    <span class="badge bg-info" style="border-radius: 8px; font-size: 0.75rem;"><i class="bi bi-bell-fill"></i> Listo</span>
-                    {% elif venta.estado_entrega == 'en_preparacion' %}
-                    <span class="badge bg-warning text-dark" style="border-radius: 8px; font-size: 0.75rem;"><i class="bi bi-fire"></i> En Preparacion</span>
-                    {% else %}
-                    <span class="badge bg-secondary" style="border-radius: 8px; font-size: 0.75rem;"><i class="bi bi-clock"></i> Pendiente</span>
-                    {% endif %}
-
-                    {% if venta.estado_pago == 'pagado' %}
-                    <span class="badge bg-success" style="border-radius: 8px; font-size: 0.75rem;"><i class="bi bi-check-circle-fill"></i> Pagado</span>
-                    {% elif venta.estado_pago == 'parcial' %}
-                    <span class="badge bg-warning text-dark" style="border-radius: 8px; font-size: 0.75rem;"><i class="bi bi-exclamation-circle"></i> Parcial</span>
-                    {% else %}
-                    <span class="badge bg-danger" style="border-radius: 8px; font-size: 0.75rem;"><i class="bi bi-x-circle"></i> Pago Pend.</span>
-                    {% endif %}
-                </div>
-
-                <!-- Payment progress bar -->
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <small class="text-muted">Pagado: ${{ '{:,}'.format(venta.monto_pagado) }} / ${{ '{:,}'.format(venta.total_final) }}</small>
-                        <small class="fw-bold">{{ pago_pct }}%</small>
-                    </div>
-                    <div class="progress" style="height: 8px; border-radius: 4px;">
-                        <div class="progress-bar {{ 'bg-success' if pago_pct >= 100 else 'bg-warning' }}" style="width: {{ [pago_pct, 100] | min }}%; border-radius: 4px;"></div>
-                    </div>
-                    {% if venta.total_final > venta.monto_pagado %}
-                    <small class="text-danger">Falta: ${{ '{:,}'.format(venta.total_final - venta.monto_pagado) }}</small>
-                    {% endif %}
-                </div>
-
-                <!-- Quick action buttons -->
-                <div class="d-flex gap-2 mb-3">
-                    {% if venta.estado_pago != 'pagado' %}
-                    <form method="POST" action="{{ url_for('ventas.marcar_pagado', codigo=stand.codigo_acceso, venta_id=venta.id) }}" class="flex-fill">
-                        <button type="submit" class="btn btn-success btn-sm w-100" style="border-radius: 10px;">
-                            <i class="bi bi-cash-stack"></i> Marcar Pagado
-                        </button>
-                    </form>
-                    {% endif %}
-                    {% if venta.estado_entrega != 'entregado' %}
-                    <form method="POST" action="{{ url_for('ventas.marcar_entregado', codigo=stand.codigo_acceso, venta_id=venta.id) }}" class="flex-fill">
-                        <button type="submit" class="btn btn-primary btn-sm w-100" style="border-radius: 10px;">
-                            <i class="bi bi-check2-all"></i> Marcar Entregado
-                        </button>
-                    </form>
-                    {% endif %}
-                </div>
-
-                <!-- Products table -->
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0" style="font-size: 0.85rem;">
-                        <thead>
-                            <tr><th>Producto</th><th class="text-center">Cant.</th><th class="text-end">P.Unit</th><th class="text-end">Subt.</th></tr>
-                        </thead>
-                        <tbody>
-                            {% set total_unidades = namespace(val=0) %}
-                            {% for d in venta.detalles %}
-                            {% set total_unidades.val = total_unidades.val + d.cantidad %}
-                            <tr>
-                                <td>{{ d.nombre_producto }}</td>
-                                <td class="text-center">{{ d.cantidad }}</td>
-                                <td class="text-end">${{ '{:,}'.format(d.precio_unitario) }}</td>
-                                <td class="text-end">${{ '{:,}'.format(d.subtotal) }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                        <tfoot>
-                            <tr class="text-muted">
-                                <td class="small">{{ venta.detalles|length }} productos</td>
-                                <td class="text-center small">{{ total_unidades.val }} uds</td>
-                                <td class="text-end small">Calc:</td>
-                                <td class="text-end small">${{ '{:,}'.format(venta.total_original) }}</td>
-                            </tr>
-                            <tr style="background: #e8f5e9;">
-                                <td colspan="3" class="text-end"><strong>Total Final:</strong></td>
-                                <td class="text-end"><strong>${{ '{:,}'.format(venta.total_final) }}</strong></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-
-                {% if venta.notas %}
-                <div class="tile mt-2" style="background: #f8f9fa; padding: 0.5rem 0.75rem; font-size: 0.85rem;">
-                    <i class="bi bi-chat-text"></i> {{ venta.notas }}
-                </div>
-                {% endif %}
-            </div>
-        </div>
+<!-- Header -->
+<div class="tile mb-2" style="padding: 0; overflow: hidden;">
+    <div style="background: linear-gradient(135deg, #007aff, #5856d6); color: white; padding: 0.6rem 1rem;" class="d-flex justify-content-between align-items-center">
+        <strong>Venta #{{ venta.numero_orden }}</strong>
+        <small>{{ venta.created_at|local_time('%d/%m/%Y %H:%M') }}</small>
     </div>
+    <div style="padding: 0.75rem 1rem;">
+        {% if venta.cliente_nombre %}
+        <p class="mb-1"><i class="bi bi-person-fill"></i> <strong>{{ venta.cliente_nombre }}</strong></p>
+        {% endif %}
 
-    <!-- Edit tile -->
-    <div class="col-12 col-lg-5">
-        <div class="tile" style="padding: 0; overflow: hidden;">
-            <div style="background: linear-gradient(135deg, #5856d6, #007aff); color: white; padding: 0.6rem 1rem;">
-                <strong><i class="bi bi-pencil"></i> Gestionar</strong>
-            </div>
-            <div style="padding: 0.75rem 1rem;">
-                <form method="POST">
-                    <div class="row g-2 mb-2">
-                        <div class="col-6">
-                            <label class="form-label small fw-semibold mb-0">Entrega</label>
-                            <select name="estado_entrega" class="form-select form-select-sm" style="border-radius: 8px;">
-                                <option value="pendiente" {{ 'selected' if venta.estado_entrega == 'pendiente' }}>Pendiente</option>
-                                <option value="en_preparacion" {{ 'selected' if venta.estado_entrega == 'en_preparacion' }}>En Prep.</option>
-                                <option value="listo" {{ 'selected' if venta.estado_entrega == 'listo' }}>Listo</option>
-                                <option value="entregado" {{ 'selected' if venta.estado_entrega == 'entregado' }}>Entregado</option>
-                            </select>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small fw-semibold mb-0">Pago</label>
-                            <select name="estado_pago" class="form-select form-select-sm" style="border-radius: 8px;">
-                                <option value="pendiente" {{ 'selected' if venta.estado_pago == 'pendiente' }}>Pendiente</option>
-                                <option value="parcial" {{ 'selected' if venta.estado_pago == 'parcial' }}>Parcial</option>
-                                <option value="pagado" {{ 'selected' if venta.estado_pago == 'pagado' }}>Pagado</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="row g-2 mb-2">
-                        <div class="col-6">
-                            <label class="form-label small fw-semibold mb-0">Pagado ($)</label>
-                            <input type="number" class="form-control form-control-sm" name="monto_pagado" value="{{ venta.monto_pagado }}" min="0" style="border-radius: 8px;">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small fw-semibold mb-0">Total Final ($)</label>
-                            <input type="number" class="form-control form-control-sm" name="total_final" value="{{ venta.total_final }}" min="0" style="border-radius: 8px;">
-                        </div>
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label small fw-semibold mb-0">Notas</label>
-                        <input type="text" class="form-control form-control-sm" name="notas" value="{{ venta.notas or '' }}" style="border-radius: 8px;">
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100" style="border-radius: 12px;">
-                        <i class="bi bi-check-lg"></i> Actualizar
-                    </button>
-                </form>
-            </div>
+        <!-- Products table (compact) -->
+        <div class="table-responsive">
+            <table class="table table-sm mb-0" style="font-size: 0.82rem;">
+                <tbody>
+                    {% for d in venta.detalles %}
+                    <tr>
+                        <td class="fw-bold" style="width: 30px;">{{ d.cantidad }}x</td>
+                        <td>{{ d.nombre_producto }}</td>
+                        <td class="text-end text-muted">${{ '{:,}'.format(d.precio_unitario) }}</td>
+                        <td class="text-end fw-bold">${{ '{:,}'.format(d.subtotal) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="background: #e8f5e9;">
+                        <td colspan="3" class="text-end fw-bold">Total:</td>
+                        <td class="text-end fw-bold text-success">${{ '{:,}'.format(venta.total_final) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
+
+        {% if venta.notas %}
+        <div style="background: #f0f4ff; padding: 0.4rem 0.6rem; border-radius: 8px; font-size: 0.82rem; margin-top: 0.5rem;">
+            <i class="bi bi-chat-text"></i> {{ venta.notas }}
+        </div>
+        {% endif %}
     </div>
 </div>
+
+<!-- Delivery checklist -->
+<div class="tile mb-2" style="padding: 0.75rem 1rem;">
+    <label class="form-label small fw-bold mb-2"><i class="bi bi-truck"></i> Estado de Entrega</label>
+    <div class="delivery-checklist">
+        {% set estados = ['pendiente', 'en_preparacion', 'listo', 'entregado'] %}
+        {% set estado_labels = {'pendiente': 'Pendiente', 'en_preparacion': 'En Preparacion', 'listo': 'Listo', 'entregado': 'Entregado'} %}
+        {% set estado_icons = {'pendiente': 'bi-clock', 'en_preparacion': 'bi-fire', 'listo': 'bi-bell-fill', 'entregado': 'bi-check-circle-fill'} %}
+        {% set current_index = estados.index(venta.estado_entrega) if venta.estado_entrega in estados else 0 %}
+
+        {% for estado in estados %}
+        {% set idx = loop.index0 %}
+        {% set is_done = idx <= current_index %}
+        {% set is_next = idx == current_index + 1 %}
+        <div class="delivery-step {{ 'done' if is_done else '' }} {{ 'next' if is_next else '' }}">
+            {% if is_next %}
+            <form method="POST" action="{{ url_for('ventas.cambiar_estado', codigo=stand.codigo_acceso, venta_id=venta.id) }}" class="d-inline">
+                <input type="hidden" name="estado_entrega" value="{{ estado }}">
+                <button type="submit" class="delivery-check">
+                    <i class="bi {{ estado_icons[estado] }}"></i>
+                </button>
+            </form>
+            {% else %}
+            <span class="delivery-check {{ 'checked' if is_done else 'disabled' }}">
+                <i class="bi {{ estado_icons[estado] }}"></i>
+            </span>
+            {% endif %}
+            <span class="delivery-label">{{ estado_labels[estado] }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Payment inline -->
+<div class="tile mb-2" style="padding: 0.75rem 1rem;">
+    <label class="form-label small fw-bold mb-2"><i class="bi bi-credit-card"></i> Pago</label>
+
+    <!-- Progress -->
+    <div class="d-flex justify-content-between align-items-center mb-1">
+        <small class="text-muted">${{ '{:,}'.format(venta.monto_pagado) }} / ${{ '{:,}'.format(venta.total_final) }}</small>
+        <span class="badge {{ 'bg-success' if venta.estado_pago == 'pagado' else ('bg-warning text-dark' if venta.estado_pago == 'parcial' else 'bg-danger') }}" style="border-radius: 8px; font-size: 0.7rem;">
+            {{ 'Pagado' if venta.estado_pago == 'pagado' else ('Parcial' if venta.estado_pago == 'parcial' else 'Pendiente') }}
+        </span>
+    </div>
+    <div class="progress mb-3" style="height: 6px; border-radius: 3px;">
+        <div class="progress-bar {{ 'bg-success' if pago_pct >= 100 else 'bg-warning' }}" style="width: {{ [pago_pct, 100] | min }}%; border-radius: 3px;"></div>
+    </div>
+
+    {% if venta.estado_pago != 'pagado' %}
+    <form method="POST" action="{{ url_for('ventas.actualizar_pago', codigo=stand.codigo_acceso, venta_id=venta.id) }}" id="pago-form">
+        <div class="row g-2 mb-2">
+            <div class="col-6">
+                <div class="form-check pago-check" style="padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 10px;">
+                    <input class="form-check-input" type="checkbox" id="check-efectivo" name="check_efectivo" onchange="togglePago()">
+                    <label class="form-check-label small fw-bold" for="check-efectivo">
+                        <i class="bi bi-cash"></i> Efectivo
+                    </label>
+                    <input type="number" class="form-control form-control-sm mt-1 d-none" id="monto-efectivo" name="monto_efectivo" value="{{ venta.total_final }}" min="0" style="border-radius: 8px;">
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="form-check pago-check" style="padding: 0.5rem; border: 2px solid #e0e0e0; border-radius: 10px;">
+                    <input class="form-check-input" type="checkbox" id="check-transferencia" name="check_transferencia" onchange="togglePago()">
+                    <label class="form-check-label small fw-bold" for="check-transferencia">
+                        <i class="bi bi-phone"></i> Transf.
+                    </label>
+                    <input type="number" class="form-control form-control-sm mt-1 d-none" id="monto-transferencia" name="monto_transferencia" value="{{ venta.total_final }}" min="0" style="border-radius: 8px;">
+                </div>
+            </div>
+        </div>
+        <input type="hidden" name="metodo_pago" id="metodo-pago-hidden" value="{{ venta.metodo_pago }}">
+        <button type="submit" class="btn btn-success w-100 btn-sm fw-bold d-none" id="btn-pagar" style="border-radius: 10px;">
+            <i class="bi bi-check-lg"></i> Confirmar Pago
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+<!-- Edit & Manage -->
+<div class="tile mb-2" style="padding: 0.75rem 1rem;">
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('ventas.editar_venta', codigo=stand.codigo_acceso, venta_id=venta.id) }}" class="btn btn-outline-primary btn-sm flex-fill" style="border-radius: 10px;">
+            <i class="bi bi-pencil"></i> Editar Pedido
+        </a>
+        {% if venta.estado_pago != 'pagado' %}
+        <form method="POST" action="{{ url_for('ventas.marcar_pagado', codigo=stand.codigo_acceso, venta_id=venta.id) }}" class="flex-fill">
+            <button type="submit" class="btn btn-success btn-sm w-100" style="border-radius: 10px;">
+                <i class="bi bi-cash-stack"></i> Pago Completo
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    <!-- Advanced form (collapsible) -->
+    <div class="collapse mt-2" id="form-avanzado">
+        <form method="POST">
+            <div class="row g-2 mb-2">
+                <div class="col-6">
+                    <label class="form-label small fw-semibold mb-0">Entrega</label>
+                    <select name="estado_entrega" class="form-select form-select-sm" style="border-radius: 8px;">
+                        <option value="pendiente" {{ 'selected' if venta.estado_entrega == 'pendiente' }}>Pendiente</option>
+                        <option value="en_preparacion" {{ 'selected' if venta.estado_entrega == 'en_preparacion' }}>En Prep.</option>
+                        <option value="listo" {{ 'selected' if venta.estado_entrega == 'listo' }}>Listo</option>
+                        <option value="entregado" {{ 'selected' if venta.estado_entrega == 'entregado' }}>Entregado</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label small fw-semibold mb-0">Pago</label>
+                    <select name="estado_pago" class="form-select form-select-sm" style="border-radius: 8px;">
+                        <option value="pendiente" {{ 'selected' if venta.estado_pago == 'pendiente' }}>Pendiente</option>
+                        <option value="parcial" {{ 'selected' if venta.estado_pago == 'parcial' }}>Parcial</option>
+                        <option value="pagado" {{ 'selected' if venta.estado_pago == 'pagado' }}>Pagado</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row g-2 mb-2">
+                <div class="col-6">
+                    <label class="form-label small fw-semibold mb-0">Pagado ($)</label>
+                    <input type="number" class="form-control form-control-sm" name="monto_pagado" value="{{ venta.monto_pagado }}" min="0" style="border-radius: 8px;">
+                </div>
+                <div class="col-6">
+                    <label class="form-label small fw-semibold mb-0">Total ($)</label>
+                    <input type="number" class="form-control form-control-sm" name="total_final" value="{{ venta.total_final }}" min="0" style="border-radius: 8px;">
+                </div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label small fw-semibold mb-0">Notas</label>
+                <input type="text" class="form-control form-control-sm" name="notas" value="{{ venta.notas or '' }}" style="border-radius: 8px;">
+            </div>
+            <button type="submit" class="btn btn-primary w-100 btn-sm" style="border-radius: 10px;">
+                <i class="bi bi-check-lg"></i> Actualizar
+            </button>
+        </form>
+    </div>
+    <button class="btn btn-sm btn-light w-100 mt-2" data-bs-toggle="collapse" data-bs-target="#form-avanzado" style="border-radius: 8px; font-size: 0.75rem;">
+        <i class="bi bi-gear"></i> Edicion Avanzada
+    </button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePago() {
+    const ef = document.getElementById('check-efectivo');
+    const tr = document.getElementById('check-transferencia');
+    const montoEf = document.getElementById('monto-efectivo');
+    const montoTr = document.getElementById('monto-transferencia');
+    const btn = document.getElementById('btn-pagar');
+    const metodo = document.getElementById('metodo-pago-hidden');
+    const total = {{ venta.total_final }};
+
+    montoEf.classList.toggle('d-none', !ef.checked);
+    montoTr.classList.toggle('d-none', !tr.checked);
+
+    if (ef.checked && tr.checked) {
+        // Mixed payment - split half/half by default
+        montoEf.value = Math.ceil(total / 2);
+        montoTr.value = Math.floor(total / 2);
+        metodo.value = 'mixto';
+    } else if (ef.checked) {
+        montoEf.value = total;
+        montoTr.value = 0;
+        metodo.value = 'efectivo';
+    } else if (tr.checked) {
+        montoTr.value = total;
+        montoEf.value = 0;
+        metodo.value = 'transferencia';
+    } else {
+        montoEf.value = 0;
+        montoTr.value = 0;
+    }
+
+    btn.classList.toggle('d-none', !ef.checked && !tr.checked);
+}
+</script>
 {% endblock %}

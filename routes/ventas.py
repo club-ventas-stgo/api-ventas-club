@@ -1,9 +1,13 @@
 import json
 from collections import OrderedDict
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from datetime import timezone
+from zoneinfo import ZoneInfo
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from app import db
 from models import Stand, Producto, Venta, DetalleVenta
 from routes.stand import get_stand_or_404
+
+CHILE_TZ = ZoneInfo('America/Santiago')
 
 ventas_bp = Blueprint('ventas', __name__, url_prefix='/s')
 
@@ -11,6 +15,36 @@ ventas_bp = Blueprint('ventas', __name__, url_prefix='/s')
 def siguiente_numero_orden(stand_id):
     ultima = Venta.query.filter_by(stand_id=stand_id).order_by(Venta.numero_orden.desc()).first()
     return (ultima.numero_orden + 1) if ultima else 1
+
+
+@ventas_bp.route('/<codigo>/panel')
+def panel(codigo):
+    stand = get_stand_or_404(codigo)
+    tab = request.args.get('tab', 'ventas')
+
+    # Load ventas for the initial render
+    filtro_estado = request.args.get('estado_entrega', '')
+    filtro_pago = request.args.get('estado_pago', '')
+    query = stand.ventas
+    if filtro_estado:
+        query = query.filter_by(estado_entrega=filtro_estado)
+    if filtro_pago:
+        query = query.filter_by(estado_pago=filtro_pago)
+    ventas = query.order_by(Venta.created_at.desc()).all()
+
+    ventas_por_dia = OrderedDict()
+    for v in ventas:
+        local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
+        dia = local_dt.strftime('%Y-%m-%d')
+        if dia not in ventas_por_dia:
+            ventas_por_dia[dia] = {'ventas': [], 'total': 0, 'count': 0}
+        ventas_por_dia[dia]['ventas'].append(v)
+        ventas_por_dia[dia]['total'] += v.total_final
+        ventas_por_dia[dia]['count'] += 1
+
+    return render_template('ventas/panel.html', stand=stand, tab=tab,
+                           ventas_por_dia=ventas_por_dia,
+                           filtro_estado=filtro_estado, filtro_pago=filtro_pago)
 
 
 @ventas_bp.route('/<codigo>/ventas')
@@ -29,7 +63,8 @@ def lista(codigo):
 
     ventas_por_dia = OrderedDict()
     for v in ventas:
-        dia = v.created_at.strftime('%Y-%m-%d')
+        local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
+        dia = local_dt.strftime('%Y-%m-%d')
         if dia not in ventas_por_dia:
             ventas_por_dia[dia] = {'ventas': [], 'total': 0, 'count': 0}
         ventas_por_dia[dia]['ventas'].append(v)
@@ -192,4 +227,185 @@ def marcar_entregado(codigo, venta_id):
     venta.estado_entrega = 'entregado'
     db.session.commit()
     flash('Venta marcada como entregada.', 'success')
+    return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+
+
+@ventas_bp.route('/<codigo>/ventas/partial')
+def lista_partial(codigo):
+    stand = get_stand_or_404(codigo)
+    filtro_estado = request.args.get('estado_entrega', '')
+    filtro_pago = request.args.get('estado_pago', '')
+
+    query = stand.ventas
+    if filtro_estado:
+        query = query.filter_by(estado_entrega=filtro_estado)
+    if filtro_pago:
+        query = query.filter_by(estado_pago=filtro_pago)
+
+    ventas = query.order_by(Venta.created_at.desc()).all()
+
+    ventas_por_dia = OrderedDict()
+    for v in ventas:
+        local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
+        dia = local_dt.strftime('%Y-%m-%d')
+        if dia not in ventas_por_dia:
+            ventas_por_dia[dia] = {'ventas': [], 'total': 0, 'count': 0}
+        ventas_por_dia[dia]['ventas'].append(v)
+        ventas_por_dia[dia]['total'] += v.total_final
+        ventas_por_dia[dia]['count'] += 1
+
+    return render_template('ventas/_ventas_partial.html', stand=stand, ventas_por_dia=ventas_por_dia,
+                           filtro_estado=filtro_estado, filtro_pago=filtro_pago)
+
+
+@ventas_bp.route('/<codigo>/ventas/<int:venta_id>/editar', methods=['GET', 'POST'])
+def editar_venta(codigo, venta_id):
+    """Edit an existing order - add/remove products."""
+    stand = get_stand_or_404(codigo)
+    venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
+
+    if request.method == 'POST':
+        cliente = request.form.get('cliente_nombre', '').strip()
+        notas = request.form.get('notas', '').strip()
+        total_final_str = request.form.get('total_final', '0')
+        items_json = request.form.get('items', '[]')
+
+        try:
+            items = json.loads(items_json)
+        except (json.JSONDecodeError, TypeError):
+            flash('Error en los datos de productos.', 'danger')
+            return redirect(url_for('ventas.editar_venta', codigo=codigo, venta_id=venta_id))
+
+        if not items:
+            flash('Debe tener al menos un producto.', 'danger')
+            return redirect(url_for('ventas.editar_venta', codigo=codigo, venta_id=venta_id))
+
+        # Remove old detalles
+        DetalleVenta.query.filter_by(venta_id=venta.id).delete()
+
+        detalles = []
+        total_original = 0
+        for item in items:
+            producto = Producto.query.get(item.get('producto_id'))
+            if not producto or producto.stand_id != stand.id:
+                continue
+            cantidad = max(1, int(item.get('cantidad', 1)))
+            try:
+                precio_unitario = int(item.get('precio', producto.precio))
+            except (ValueError, TypeError):
+                precio_unitario = producto.precio
+            subtotal = precio_unitario * cantidad
+            total_original += subtotal
+            detalles.append(DetalleVenta(
+                venta_id=venta.id,
+                producto_id=producto.id,
+                nombre_producto=producto.nombre,
+                cantidad=cantidad,
+                precio_unitario=precio_unitario,
+                subtotal=subtotal
+            ))
+
+        if not detalles:
+            flash('No se encontraron productos válidos.', 'danger')
+            return redirect(url_for('ventas.editar_venta', codigo=codigo, venta_id=venta_id))
+
+        for d in detalles:
+            db.session.add(d)
+
+        venta.cliente_nombre = cliente
+        venta.notas = notas
+        venta.total_original = total_original
+        try:
+            venta.total_final = int(total_final_str)
+        except ValueError:
+            venta.total_final = total_original
+
+        db.session.commit()
+        flash(f'Venta #{venta.numero_orden} actualizada.', 'success')
+        return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+
+    productos = stand.productos.filter_by(activo=True).order_by(Producto.nombre).all()
+    return render_template('ventas/editar.html', stand=stand, venta=venta, productos=productos)
+
+
+@ventas_bp.route('/<codigo>/stock')
+def stock_api(codigo):
+    """API: returns current stock for all products with stock limits."""
+    stand = get_stand_or_404(codigo)
+    productos = stand.productos.filter(Producto.stock.isnot(None), Producto.activo == True).all()
+    return jsonify([{
+        'id': p.id,
+        'nombre': p.nombre,
+        'stock': p.stock,
+        'vendido': p.stock_vendido,
+        'disponible': p.stock_disponible,
+    } for p in productos])
+
+
+@ventas_bp.route('/<codigo>/ventas/buscar')
+def buscar(codigo):
+    """Search sales by customer name or order number."""
+    stand = get_stand_or_404(codigo)
+    q = request.args.get('q', '').strip()
+
+    if not q:
+        return jsonify([])
+
+    ventas = Venta.query.filter(
+        Venta.stand_id == stand.id,
+        db.or_(
+            Venta.cliente_nombre.ilike(f'%{q}%'),
+            Venta.numero_orden == (int(q) if q.isdigit() else -1)
+        )
+    ).order_by(Venta.created_at.desc()).limit(20).all()
+
+    results = [{
+        'id': v.id,
+        'numero_orden': v.numero_orden,
+        'cliente_nombre': v.cliente_nombre or '',
+        'total_final': v.total_final,
+        'estado_entrega': v.estado_entrega,
+        'created_at': v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ).strftime('%d/%m %H:%M'),
+        'detalles': [{'nombre': d.nombre_producto, 'cantidad': d.cantidad} for d in v.detalles]
+    } for v in ventas]
+
+    return jsonify(results)
+
+
+@ventas_bp.route('/<codigo>/ventas/<int:venta_id>/pago', methods=['POST'])
+def actualizar_pago(codigo, venta_id):
+    """API endpoint for inline payment updates."""
+    stand = get_stand_or_404(codigo)
+    venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
+
+    metodo_pago = request.form.get('metodo_pago', venta.metodo_pago)
+    monto_efectivo = request.form.get('monto_efectivo', '0')
+    monto_transferencia = request.form.get('monto_transferencia', '0')
+
+    try:
+        monto_ef = int(monto_efectivo)
+    except (ValueError, TypeError):
+        monto_ef = 0
+    try:
+        monto_tr = int(monto_transferencia)
+    except (ValueError, TypeError):
+        monto_tr = 0
+
+    total_pagado = monto_ef + monto_tr
+    venta.monto_pagado = total_pagado
+    venta.metodo_pago = metodo_pago
+
+    if total_pagado >= venta.total_final:
+        venta.estado_pago = 'pagado'
+    elif total_pagado > 0:
+        venta.estado_pago = 'parcial'
+    else:
+        venta.estado_pago = 'pendiente'
+
+    db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'estado_pago': venta.estado_pago, 'monto_pagado': venta.monto_pagado})
+
+    flash('Pago actualizado.', 'success')
     return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))

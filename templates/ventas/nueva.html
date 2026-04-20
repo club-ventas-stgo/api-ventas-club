@@ -51,13 +51,19 @@
         <div class="row g-2">
             {% for p in productos %}
             <div class="col-4 col-sm-3 col-md-3 col-lg-2">
-                <button type="button" class="btn btn-outline-primary producto-btn w-100 h-100 d-flex flex-column align-items-center justify-content-center"
-                        data-id="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}">
+                <button type="button" class="btn btn-outline-primary producto-btn w-100 h-100 d-flex flex-column align-items-center justify-content-center {{ 'opacity-50' if p.stock_disponible is not none and p.stock_disponible <= 0 }}"
+                        data-id="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}" data-stock="{{ p.stock_disponible if p.stock_disponible is not none else '' }}"
+                        {{ 'disabled' if p.stock_disponible is not none and p.stock_disponible <= 0 }}>
                     {% if p.foto %}
                     <img src="{{ p.foto }}" class="mb-1">
                     {% endif %}
                     <small class="fw-bold lh-sm text-center" style="font-size: 0.72rem;">{{ p.nombre }}</small>
                     <span class="text-success fw-bold" style="font-size: 0.78rem;">${{ '{:,}'.format(p.precio) }}</span>
+                    {% if p.stock_disponible is not none %}
+                    <span class="badge {{ 'bg-success' if p.stock_disponible > 5 else ('bg-warning text-dark' if p.stock_disponible > 0 else 'bg-danger') }}" style="font-size: 0.6rem; border-radius: 6px; margin-top: 2px;">
+                        Stock: {{ p.stock_disponible }}
+                    </span>
+                    {% endif %}
                     <span class="badge bg-danger rounded-pill badge-qty d-none" id="badge-{{ p.id }}">0</span>
                 </button>
             </div>
