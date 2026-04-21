@@ -34,77 +34,85 @@
 
 <!-- ==================== TAB: REGISTRAR ==================== -->
 <div class="tab-panel active" id="panel-registrar">
-    <form id="form-venta-ctrl">
-        <input type="hidden" name="items" id="ctrl-items-json">
+    <div class="pos-container">
+        <form id="form-venta-ctrl">
+            <input type="hidden" name="items" id="ctrl-items-json">
+            <div class="tile" style="padding: 0; overflow: hidden;">
+                {% if promociones_activas %}
+                <div style="padding: 4px 10px; background: #fff8e1; border-bottom: 1px solid #ffe082; font-size: 0.7rem;">
+                    <i class="bi bi-tag-fill text-warning"></i>
+                    {% for promo in promociones_activas %}
+                    <span class="fw-semibold">{{ promo.nombre }}{% if not loop.last %},{% endif %}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
 
-        {% if productos_activos %}
-        <div class="row g-1 mb-2">
-            {% for p in productos_activos %}
-            <div class="col-3 col-sm-3 col-md-2">
-                <button type="button" class="btn btn-outline-primary producto-btn w-100 d-flex flex-column align-items-center justify-content-center {{ 'opacity-50' if p.stock_disponible is not none and p.stock_disponible <= 0 }}"
-                        data-id="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}" data-stock="{{ p.stock_disponible if p.stock_disponible is not none else '' }}"
-                        {{ 'disabled' if p.stock_disponible is not none and p.stock_disponible <= 0 }}
-                        style="min-height: 60px; padding: 0.25rem !important; border-radius: 10px; border-width: 1.5px !important;">
-                    {% if p.foto %}
-                    <img src="{{ p.foto }}" style="width: 30px; height: 30px; object-fit: cover; border-radius: 6px;">
-                    {% endif %}
-                    <small class="fw-bold lh-1 text-center" style="font-size: 0.65rem;">{{ p.nombre }}</small>
-                    <span class="text-success fw-bold" style="font-size: 0.7rem;">${{ '{:,}'.format(p.precio) }}</span>
-                    {% if p.stock_disponible is not none %}
-                    <span class="badge {{ 'bg-warning text-dark' if p.stock_disponible > 0 else 'bg-danger' }}" style="font-size: 0.5rem; border-radius: 4px; padding: 1px 3px;">{{ p.stock_disponible }}</span>
-                    {% endif %}
-                    <span class="badge bg-danger rounded-pill badge-qty d-none" id="badge-{{ p.id }}" style="font-size: 0.7rem; min-width: 18px;">0</span>
-                </button>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="text-center py-3 mb-2">
-            <p class="text-muted mb-1 small">No hay productos.</p>
-            <button type="button" class="btn btn-sm btn-primary" style="border-radius: 8px;" onclick="switchTab('productos')">Agregar</button>
-        </div>
-        {% endif %}
-
-        <!-- Pedido compacto -->
-        <div class="tile" style="padding: 0; overflow: hidden;" id="resumen-sticky">
-            <div style="background: linear-gradient(135deg, #34c759, #30d158); color: white; padding: 0.35rem 0.6rem;" class="d-flex justify-content-between align-items-center">
-                <strong style="font-size: 0.85rem;"><i class="bi bi-receipt"></i> Pedido</strong>
-                <span id="total-display" class="fw-bold" style="font-size: 1.1rem;">$0</span>
-            </div>
-            <div id="items-list" style="max-height: 140px; overflow-y: auto; padding: 0.3rem 0.6rem;">
-                <p class="text-muted text-center small mb-0" style="padding: 0.5rem 0; font-size: 0.75rem;">Toca productos para agregar</p>
-            </div>
-            <div style="padding: 0.4rem 0.6rem; border-top: 1px solid #e9ecef; background: #fafafa;">
-                <div class="d-flex gap-1 align-items-center">
-                    <input type="text" class="form-control form-control-sm" name="cliente_nombre" id="ctrl-cliente" placeholder="Cliente" maxlength="100" style="border-radius: 8px; font-size: 0.78rem; flex: 1; height: 30px;">
-                    <div class="btn-group flex-shrink-0" role="group" style="height: 30px;">
-                        <input type="radio" class="btn-check" name="metodo_pago" id="ctrl-mp-efectivo" value="efectivo" checked>
-                        <label class="btn btn-outline-secondary" for="ctrl-mp-efectivo" style="border-radius: 6px 0 0 6px; font-size: 0.7rem; padding: 0 8px; line-height: 28px;"><i class="bi bi-cash"></i></label>
-                        <input type="radio" class="btn-check" name="metodo_pago" id="ctrl-mp-transferencia" value="transferencia">
-                        <label class="btn btn-outline-secondary" for="ctrl-mp-transferencia" style="border-radius: 0 6px 6px 0; font-size: 0.7rem; padding: 0 8px; line-height: 28px;"><i class="bi bi-phone"></i></label>
+                <div class="pos-layout">
+                    <!-- LEFT: Products -->
+                    <div class="pos-products">
+                        {% if productos_activos %}
+                        <div class="pos-grid">
+                            {% for p in productos_activos %}
+                            <button type="button" class="pos-prod-btn {{ 'opacity-50' if p.stock_disponible is not none and p.stock_disponible <= 0 }}"
+                                    data-id="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}" data-stock="{{ p.stock_disponible if p.stock_disponible is not none else '' }}"
+                                    {{ 'disabled' if p.stock_disponible is not none and p.stock_disponible <= 0 }}>
+                                {% if p.foto %}<img src="{{ p.foto }}">{% endif %}
+                                <span class="pos-prod-name">{{ p.nombre }}</span>
+                                <span class="pos-prod-price">${{ '{:,}'.format(p.precio) }}</span>
+                                {% if p.stock_disponible is not none and p.stock_disponible <= 10 %}
+                                <span class="badge {{ 'bg-warning text-dark' if p.stock_disponible > 0 else 'bg-danger' }}" style="font-size:0.48rem;padding:1px 3px;border-radius:3px;position:absolute;top:2px;left:2px;">{{ p.stock_disponible }}</span>
+                                {% endif %}
+                                <span class="badge bg-danger rounded-pill badge-qty d-none" id="badge-{{ p.id }}">0</span>
+                            </button>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3">
+                            <p class="text-muted mb-1 small">Sin productos.</p>
+                            <button type="button" class="btn btn-sm btn-primary" style="border-radius:8px;" onclick="switchTab('productos')">Agregar</button>
+                        </div>
+                        {% endif %}
                     </div>
-                    <input type="hidden" id="total_final" name="total_final" value="0">
-                    <input type="text" class="form-control form-control-sm" name="notas" id="ctrl-notas" placeholder="Notas" style="border-radius: 8px; font-size: 0.78rem; width: 70px; flex: 0 1 70px; height: 30px;">
-                    <button type="submit" class="btn btn-success btn-sm fw-bold flex-shrink-0" id="btn-confirmar" disabled style="border-radius: 8px; padding: 0 12px; font-size: 0.8rem; height: 30px;">
-                        <i class="bi bi-check-lg"></i>
-                    </button>
+
+                    <!-- RIGHT: Cart -->
+                    <div class="pos-cart">
+                        <div class="pos-cart-header">
+                            <strong><i class="bi bi-receipt"></i> Pedido</strong>
+                            <span id="total-display" class="fw-bold">$0</span>
+                        </div>
+                        <div id="items-list" class="pos-cart-items">
+                            <p class="text-muted text-center small mb-0">Toca productos</p>
+                        </div>
+                        <div class="pos-cart-footer">
+                            <div class="d-flex gap-1 align-items-center mb-1">
+                                <input type="text" class="form-control form-control-sm" name="cliente_nombre" id="ctrl-cliente" placeholder="Cliente" maxlength="100" style="border-radius:6px;font-size:0.75rem;height:28px;flex:1;">
+                                <input type="text" class="form-control form-control-sm" name="notas" id="ctrl-notas" placeholder="Notas" style="border-radius:6px;font-size:0.75rem;height:28px;flex:1;">
+                            </div>
+                            <div class="d-flex gap-1 align-items-center">
+                                <div class="btn-group flex-shrink-0" role="group">
+                                    <input type="radio" class="btn-check" name="metodo_pago" id="ctrl-mp-efectivo" value="efectivo" checked>
+                                    <label class="btn btn-outline-secondary" for="ctrl-mp-efectivo" style="border-radius:6px 0 0 6px;font-size:0.68rem;padding:3px 8px;"><i class="bi bi-cash"></i> Efect.</label>
+                                    <input type="radio" class="btn-check" name="metodo_pago" id="ctrl-mp-transferencia" value="transferencia">
+                                    <label class="btn btn-outline-secondary" for="ctrl-mp-transferencia" style="border-radius:0 6px 6px 0;font-size:0.68rem;padding:3px 8px;"><i class="bi bi-phone"></i> Transf.</label>
+                                </div>
+                                <input type="hidden" id="total_final" name="total_final" value="0">
+                                <button type="submit" class="btn btn-success btn-sm fw-bold flex-grow-1" id="btn-confirmar" disabled style="border-radius:8px;font-size:0.82rem;padding:4px;">
+                                    <i class="bi bi-check-lg"></i> Confirmar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-        {% if promociones_activas %}
-        <div class="d-flex gap-1 flex-wrap mt-1" style="padding: 0 2px;">
-            <small class="text-muted" style="font-size: 0.65rem;"><i class="bi bi-tag-fill text-warning"></i></small>
-            {% for promo in promociones_activas %}
-            <span class="badge bg-warning text-dark" style="font-size: 0.6rem; border-radius: 4px; font-weight: 500;">{{ promo.nombre }}</span>
-            {% endfor %}
-        </div>
-        {% endif %}
-    </form>
+        </form>
+    </div>
 </div>
 
 <!-- ==================== TAB: VENTAS ==================== -->
 <div class="tab-panel" id="panel-ventas">
+    <div style="max-width: 600px; margin: 0 auto;">
     {% include 'ventas/_ventas_inline.html' %}
+    </div>
 </div>
 
 <!-- ==================== TAB: PROYECTAR ==================== -->
