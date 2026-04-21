@@ -1,91 +1,66 @@
 <!-- Filters -->
-<div class="d-flex gap-1 align-items-center mb-2" style="padding: 0 2px;">
-    <input type="text" class="form-control form-control-sm flex-fill" id="ctrl-buscar" placeholder="Buscar cliente o #orden..." style="border-radius: 10px; min-width: 0;" oninput="buscarVentasControl(this.value)">
-    <select id="ctrl-filtro-estado" class="form-select form-select-sm" style="border-radius: 10px; min-width: 0; max-width: 110px;" onchange="filtrarVentas()">
+<div class="d-flex gap-1 align-items-center mb-2">
+    <input type="text" class="form-control form-control-sm flex-fill" id="ctrl-buscar" placeholder="Buscar..." style="border-radius: 8px;" oninput="buscarVentasControl(this.value)">
+    <select id="ctrl-filtro-estado" class="form-select form-select-sm" style="border-radius: 8px; max-width: 100px;" onchange="filtrarVentas()">
         <option value="">Entrega</option>
-        <option value="pendiente">Pendiente</option>
-        <option value="en_preparacion">En Prep.</option>
+        <option value="pendiente">Pend.</option>
+        <option value="en_preparacion">Prep.</option>
         <option value="listo">Listo</option>
-        <option value="entregado">Entregado</option>
+        <option value="entregado">Entreg.</option>
     </select>
-    <select id="ctrl-filtro-pago" class="form-select form-select-sm" style="border-radius: 10px; min-width: 0; max-width: 100px;" onchange="filtrarVentas()">
+    <select id="ctrl-filtro-pago" class="form-select form-select-sm" style="border-radius: 8px; max-width: 90px;" onchange="filtrarVentas()">
         <option value="">Pago</option>
-        <option value="pendiente">Pendiente</option>
+        <option value="pendiente">Pend.</option>
         <option value="parcial">Parcial</option>
         <option value="pagado">Pagado</option>
     </select>
 </div>
 
-<!-- Search results area -->
 <div id="ctrl-buscar-results" class="d-none mb-2"></div>
 
-<!-- Day groups -->
 <div id="ctrl-ventas-list">
 {% if ventas_por_dia %}
     {% for dia, data in ventas_por_dia.items() %}
-    <div class="day-group mb-2">
-        <div class="day-group-header d-flex justify-content-between align-items-center"
+    <div class="day-group mb-1">
+        <div class="day-group-header d-flex justify-content-between align-items-center py-1 px-2"
              data-bs-toggle="collapse" data-bs-target="#ctrl-dia-{{ loop.index }}"
-             onclick="this.classList.toggle('collapsed')">
-            <div>
-                <i class="bi bi-calendar3"></i>
-                <strong>{{ dia }}</strong>
-                <span class="badge bg-secondary" style="border-radius: 8px;">{{ data.count }}</span>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-                <span class="fw-bold text-success">${{ '{:,}'.format(data.total) }}</span>
-                <i class="bi bi-chevron-down"></i>
-            </div>
+             onclick="this.classList.toggle('collapsed')" style="font-size: 0.82rem;">
+            <div><i class="bi bi-calendar3"></i> <strong>{{ dia }}</strong> <span class="badge bg-secondary" style="border-radius:6px;font-size:0.6rem;">{{ data.count }}</span></div>
+            <div><span class="fw-bold text-success">${{ '{:,}'.format(data.total) }}</span> <i class="bi bi-chevron-down" style="font-size:0.7rem;"></i></div>
         </div>
         <div class="collapse {{ 'show' if loop.first }}" id="ctrl-dia-{{ loop.index }}">
             {% for v in data.ventas %}
-            <div class="venta-item estado-{{ v.estado_entrega }}" style="cursor: pointer;" onclick="expandVenta({{ v.id }}, this)">
+            <div class="venta-item estado-{{ v.estado_entrega }} py-1 px-2" style="cursor:pointer;font-size:0.82rem;" onclick="expandVenta({{ v.id }},this)">
                 <div class="d-flex justify-content-between align-items-center">
-                    <div class="flex-grow-1 me-2" style="min-width: 0;">
-                        <div class="d-flex align-items-center gap-1 flex-wrap">
-                            <strong style="font-size: 0.9rem;">#{{ v.numero_orden }}</strong>
-                            {% if v.cliente_nombre %}
-                            <span class="fw-semibold" style="font-size: 0.85rem;">{{ v.cliente_nombre }}</span>
-                            {% endif %}
-                            <small class="text-muted">{{ v.created_at|local_time('%H:%M') }}</small>
-                        </div>
-                        <div style="font-size: 0.75rem; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            {% for d in v.detalles %}{{ d.cantidad }}x {{ d.nombre_producto }}{% if not loop.last %}, {% endif %}{% endfor %}
-                        </div>
+                    <div class="flex-grow-1 me-2" style="min-width:0;">
+                        <span class="fw-bold">#{{ v.numero_orden }}</span>
+                        {% if v.cliente_nombre %}<span class="fw-semibold ms-1">{{ v.cliente_nombre }}</span>{% endif %}
+                        <small class="text-muted ms-1">{{ v.created_at|local_time('%H:%M') }}</small>
+                        <div style="font-size:0.7rem;color:#999;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{% for d in v.detalles %}{{ d.cantidad }}x {{ d.nombre_producto }}{% if not loop.last %}, {% endif %}{% endfor %}</div>
                     </div>
                     <div class="text-end flex-shrink-0">
-                        <strong style="font-size: 0.95rem;">${{ '{:,}'.format(v.total_final) }}</strong>
-                        <div class="d-flex gap-1 justify-content-end mt-1">
-                            {% if v.estado_pago == 'pagado' %}
-                            <span class="badge bg-success" style="font-size:0.58rem; border-radius: 6px; padding: 2px 5px;">Pagado</span>
-                            {% elif v.estado_pago == 'parcial' %}
-                            <span class="badge bg-warning text-dark" style="font-size:0.58rem; border-radius: 6px; padding: 2px 5px;">Parcial</span>
-                            {% else %}
-                            <span class="badge bg-danger" style="font-size:0.58rem; border-radius: 6px; padding: 2px 5px;">Debe</span>
-                            {% endif %}
-                            {% if v.estado_entrega == 'entregado' %}
-                            <span class="badge bg-success" style="font-size:0.58rem; border-radius: 6px; padding: 2px 5px;"><i class="bi bi-check"></i></span>
-                            {% elif v.estado_entrega == 'listo' %}
-                            <span class="badge bg-info" style="font-size:0.58rem; border-radius: 6px; padding: 2px 5px;">Listo</span>
-                            {% elif v.estado_entrega == 'en_preparacion' %}
-                            <span class="badge bg-warning text-dark" style="font-size:0.58rem; border-radius: 6px; padding: 2px 5px;">Prep.</span>
-                            {% else %}
-                            <span class="badge bg-secondary" style="font-size:0.58rem; border-radius: 6px; padding: 2px 5px;">Pend.</span>
-                            {% endif %}
+                        <strong>${{ '{:,}'.format(v.total_final) }}</strong>
+                        <div class="d-flex gap-1 justify-content-end">
+                            {% if v.estado_pago == 'pagado' %}<span class="badge bg-success" style="font-size:0.5rem;padding:1px 4px;border-radius:4px;">Pagado</span>
+                            {% elif v.estado_pago == 'parcial' %}<span class="badge bg-warning text-dark" style="font-size:0.5rem;padding:1px 4px;border-radius:4px;">Parcial</span>
+                            {% else %}<span class="badge bg-danger" style="font-size:0.5rem;padding:1px 4px;border-radius:4px;">Debe</span>{% endif %}
+                            {% if v.estado_entrega == 'entregado' %}<span class="badge bg-success" style="font-size:0.5rem;padding:1px 4px;border-radius:4px;"><i class="bi bi-check"></i></span>
+                            {% elif v.estado_entrega == 'listo' %}<span class="badge bg-info" style="font-size:0.5rem;padding:1px 4px;border-radius:4px;">Listo</span>
+                            {% elif v.estado_entrega == 'en_preparacion' %}<span class="badge bg-warning text-dark" style="font-size:0.5rem;padding:1px 4px;border-radius:4px;">Prep.</span>
+                            {% else %}<span class="badge bg-secondary" style="font-size:0.5rem;padding:1px 4px;border-radius:4px;">Pend.</span>{% endif %}
                         </div>
                     </div>
                 </div>
-                <!-- Inline expand area -->
-                <div class="venta-expand" id="venta-expand-{{ v.id }}" style="display: none;"></div>
+                <div class="venta-expand" id="venta-expand-{{ v.id }}" style="display:none;"></div>
             </div>
             {% endfor %}
         </div>
     </div>
     {% endfor %}
 {% else %}
-<div class="tile text-center py-5">
-    <i class="bi bi-receipt text-muted" style="font-size: 2.5rem;"></i>
-    <p class="text-muted mt-2 mb-0">No hay ventas registradas.</p>
+<div class="text-center py-4">
+    <i class="bi bi-receipt text-muted" style="font-size:2rem;"></i>
+    <p class="text-muted mt-1 mb-0 small">No hay ventas registradas.</p>
 </div>
 {% endif %}
 </div>

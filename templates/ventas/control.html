@@ -10,10 +10,10 @@
 {% block flashes %}{% endblock %}
 
 {% block content %}
-<!-- Toast container -->
+<!-- Toast -->
 <div class="position-fixed top-0 end-0 p-3" style="z-index: 9999;" id="toast-container"></div>
 
-<!-- Tab bar -->
+<!-- Tabs -->
 <div class="control-tabs" id="control-tabs">
     <button class="control-tab active" data-tab="registrar" onclick="switchTab('registrar')">
         <i class="bi bi-cart-plus"></i><span class="tab-label">Registrar</span>
@@ -37,79 +37,68 @@
     <form id="form-venta-ctrl">
         <input type="hidden" name="items" id="ctrl-items-json">
 
-        <!-- Cliente + Promos inline -->
-        <div class="d-flex gap-2 mb-2 align-items-center">
-            <input type="text" class="form-control form-control-sm" name="cliente_nombre" id="ctrl-cliente" placeholder="Nombre cliente (opcional)" maxlength="100" style="border-radius: 10px; flex: 1;">
-            {% if promociones_activas %}
-            <div class="d-flex gap-1 flex-shrink-0 flex-wrap">
-                {% for promo in promociones_activas %}
-                <span class="badge bg-warning text-dark" style="font-size: 0.68rem; border-radius: 6px;">{{ promo.nombre }}</span>
-                {% endfor %}
-            </div>
-            {% endif %}
-        </div>
-
         {% if productos_activos %}
-        <!-- Product grid -->
-        <div class="row g-2 mb-2">
+        <div class="row g-1 mb-2">
             {% for p in productos_activos %}
-            <div class="col-4 col-sm-3 col-md-3 col-lg-2">
-                <button type="button" class="btn btn-outline-primary producto-btn w-100 h-100 d-flex flex-column align-items-center justify-content-center {{ 'opacity-50' if p.stock_disponible is not none and p.stock_disponible <= 0 }}"
+            <div class="col-3 col-sm-3 col-md-2">
+                <button type="button" class="btn btn-outline-primary producto-btn w-100 d-flex flex-column align-items-center justify-content-center {{ 'opacity-50' if p.stock_disponible is not none and p.stock_disponible <= 0 }}"
                         data-id="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}" data-stock="{{ p.stock_disponible if p.stock_disponible is not none else '' }}"
-                        {{ 'disabled' if p.stock_disponible is not none and p.stock_disponible <= 0 }}>
+                        {{ 'disabled' if p.stock_disponible is not none and p.stock_disponible <= 0 }}
+                        style="min-height: 60px; padding: 0.25rem !important; border-radius: 10px; border-width: 1.5px !important;">
                     {% if p.foto %}
-                    <img src="{{ p.foto }}" class="mb-1">
+                    <img src="{{ p.foto }}" style="width: 30px; height: 30px; object-fit: cover; border-radius: 6px;">
                     {% endif %}
-                    <small class="fw-bold lh-sm text-center" style="font-size: 0.72rem;">{{ p.nombre }}</small>
-                    <span class="text-success fw-bold" style="font-size: 0.78rem;">${{ '{:,}'.format(p.precio) }}</span>
+                    <small class="fw-bold lh-1 text-center" style="font-size: 0.65rem;">{{ p.nombre }}</small>
+                    <span class="text-success fw-bold" style="font-size: 0.7rem;">${{ '{:,}'.format(p.precio) }}</span>
                     {% if p.stock_disponible is not none %}
-                    <span class="badge {{ 'bg-success' if p.stock_disponible > 5 else ('bg-warning text-dark' if p.stock_disponible > 0 else 'bg-danger') }}" style="font-size: 0.6rem; border-radius: 6px; margin-top: 2px;">
-                        Stock: {{ p.stock_disponible }}
-                    </span>
+                    <span class="badge {{ 'bg-warning text-dark' if p.stock_disponible > 0 else 'bg-danger' }}" style="font-size: 0.5rem; border-radius: 4px; padding: 1px 3px;">{{ p.stock_disponible }}</span>
                     {% endif %}
-                    <span class="badge bg-danger rounded-pill badge-qty d-none" id="badge-{{ p.id }}">0</span>
+                    <span class="badge bg-danger rounded-pill badge-qty d-none" id="badge-{{ p.id }}" style="font-size: 0.7rem; min-width: 18px;">0</span>
                 </button>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <div class="tile text-center py-4 mb-2">
-            <p class="text-muted mb-1">No hay productos activos.</p>
-            <button type="button" class="btn btn-sm btn-primary" style="border-radius: 10px;" onclick="switchTab('productos')">Agregar Productos</button>
+        <div class="text-center py-3 mb-2">
+            <p class="text-muted mb-1 small">No hay productos.</p>
+            <button type="button" class="btn btn-sm btn-primary" style="border-radius: 8px;" onclick="switchTab('productos')">Agregar</button>
         </div>
         {% endif %}
 
-        <!-- Order summary + Payment + Submit combined -->
+        <!-- Pedido compacto -->
         <div class="tile" style="padding: 0; overflow: hidden;" id="resumen-sticky">
-            <div style="background: linear-gradient(135deg, #34c759, #30d158); color: white; padding: 0.5rem 0.75rem;" class="d-flex justify-content-between align-items-center">
-                <strong><i class="bi bi-receipt"></i> Pedido</strong>
-                <span id="total-display" class="fs-5 fw-bold">$0</span>
+            <div style="background: linear-gradient(135deg, #34c759, #30d158); color: white; padding: 0.35rem 0.6rem;" class="d-flex justify-content-between align-items-center">
+                <strong style="font-size: 0.85rem;"><i class="bi bi-receipt"></i> Pedido</strong>
+                <span id="total-display" class="fw-bold" style="font-size: 1.1rem;">$0</span>
             </div>
-            <div id="items-list" style="max-height: 180px; overflow-y: auto; padding: 0.5rem 0.75rem;">
-                <p class="text-muted text-center small mb-0" style="padding: 1rem 0;">Toca los productos para agregar</p>
+            <div id="items-list" style="max-height: 140px; overflow-y: auto; padding: 0.3rem 0.6rem;">
+                <p class="text-muted text-center small mb-0" style="padding: 0.5rem 0; font-size: 0.75rem;">Toca productos para agregar</p>
             </div>
-            <!-- Payment row inside the same card -->
-            <div style="padding: 0.6rem 0.75rem; border-top: 1px solid #e9ecef; background: #fafafa;">
-                <div class="d-flex gap-2 align-items-center mb-2">
-                    <div class="btn-group flex-shrink-0" role="group">
+            <div style="padding: 0.4rem 0.6rem; border-top: 1px solid #e9ecef; background: #fafafa;">
+                <div class="d-flex gap-1 align-items-center">
+                    <input type="text" class="form-control form-control-sm" name="cliente_nombre" id="ctrl-cliente" placeholder="Cliente" maxlength="100" style="border-radius: 8px; font-size: 0.78rem; flex: 1; height: 30px;">
+                    <div class="btn-group flex-shrink-0" role="group" style="height: 30px;">
                         <input type="radio" class="btn-check" name="metodo_pago" id="ctrl-mp-efectivo" value="efectivo" checked>
-                        <label class="btn btn-outline-secondary btn-sm" for="ctrl-mp-efectivo" style="border-radius: 8px 0 0 8px; font-size: 0.78rem;"><i class="bi bi-cash"></i> Efectivo</label>
+                        <label class="btn btn-outline-secondary" for="ctrl-mp-efectivo" style="border-radius: 6px 0 0 6px; font-size: 0.7rem; padding: 0 8px; line-height: 28px;"><i class="bi bi-cash"></i></label>
                         <input type="radio" class="btn-check" name="metodo_pago" id="ctrl-mp-transferencia" value="transferencia">
-                        <label class="btn btn-outline-secondary btn-sm" for="ctrl-mp-transferencia" style="border-radius: 0 8px 8px 0; font-size: 0.78rem;"><i class="bi bi-phone"></i> Transfer.</label>
+                        <label class="btn btn-outline-secondary" for="ctrl-mp-transferencia" style="border-radius: 0 6px 6px 0; font-size: 0.7rem; padding: 0 8px; line-height: 28px;"><i class="bi bi-phone"></i></label>
                     </div>
-                    <div class="input-group input-group-sm flex-grow-1">
-                        <span class="input-group-text" style="border-radius: 8px 0 0 8px; font-size: 0.78rem;">$</span>
-                        <input type="number" class="form-control" id="total_final" name="total_final" value="0" min="0" style="border-radius: 0 8px 8px 0;">
-                    </div>
-                </div>
-                <div class="d-flex gap-2 align-items-center">
-                    <input type="text" class="form-control form-control-sm flex-grow-1" name="notas" id="ctrl-notas" placeholder="Notas (opcional)" style="border-radius: 8px; font-size: 0.8rem;">
-                    <button type="submit" class="btn btn-success btn-sm fw-bold flex-shrink-0" id="btn-confirmar" disabled style="border-radius: 10px; padding: 0.4rem 1rem; font-size: 0.85rem;">
-                        <i class="bi bi-check-lg"></i> Confirmar
+                    <input type="hidden" id="total_final" name="total_final" value="0">
+                    <input type="text" class="form-control form-control-sm" name="notas" id="ctrl-notas" placeholder="Notas" style="border-radius: 8px; font-size: 0.78rem; width: 70px; flex: 0 1 70px; height: 30px;">
+                    <button type="submit" class="btn btn-success btn-sm fw-bold flex-shrink-0" id="btn-confirmar" disabled style="border-radius: 8px; padding: 0 12px; font-size: 0.8rem; height: 30px;">
+                        <i class="bi bi-check-lg"></i>
                     </button>
                 </div>
             </div>
         </div>
+        {% if promociones_activas %}
+        <div class="d-flex gap-1 flex-wrap mt-1" style="padding: 0 2px;">
+            <small class="text-muted" style="font-size: 0.65rem;"><i class="bi bi-tag-fill text-warning"></i></small>
+            {% for promo in promociones_activas %}
+            <span class="badge bg-warning text-dark" style="font-size: 0.6rem; border-radius: 4px; font-weight: 500;">{{ promo.nombre }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
     </form>
 </div>
 
@@ -130,8 +119,6 @@
     <div id="productos-container">
         {% include 'stand/_productos_partial.html' %}
     </div>
-
-    <!-- Modal agregar producto -->
     <div class="modal fade" id="modal-agregar-prod" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -159,9 +146,7 @@
                         </div>
                     </div>
                     <div class="modal-footer py-2">
-                        <button type="submit" class="btn btn-primary w-100" style="border-radius: 12px;">
-                            <i class="bi bi-plus-lg"></i> Agregar
-                        </button>
+                        <button type="submit" class="btn btn-primary w-100" style="border-radius: 12px;"><i class="bi bi-plus-lg"></i> Agregar</button>
                     </div>
                 </form>
             </div>
@@ -174,8 +159,6 @@
     <div id="promos-container">
         {% include 'stand/_promociones_partial.html' %}
     </div>
-
-    <!-- Modal nueva promo -->
     <div class="modal fade" id="modal-promo" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -195,9 +178,7 @@
                         </div>
                     </div>
                     <div class="modal-footer py-2">
-                        <button type="submit" class="btn btn-warning w-100" style="border-radius: 12px;">
-                            <i class="bi bi-plus-lg"></i> Crear
-                        </button>
+                        <button type="submit" class="btn btn-warning w-100" style="border-radius: 12px;"><i class="bi bi-plus-lg"></i> Crear</button>
                     </div>
                 </form>
             </div>
@@ -211,43 +192,42 @@
 const CODIGO = '{{ stand.codigo_acceso }}';
 const BASE = '/s/' + CODIGO;
 
+// Products data for inline editing
+const PRODUCTOS_DATA = {
+{% for p in productos_activos %}
+    {{ p.id }}: {id: {{ p.id }}, nombre: '{{ p.nombre|e }}', precio: {{ p.precio }}, foto: {% if p.foto %}'{{ p.foto[:60] }}...'{% else %}null{% endif %}, stock: {{ p.stock_disponible if p.stock_disponible is not none else 'null' }}},
+{% endfor %}
+};
+
 // ===== TABS =====
 function switchTab(tab) {
     document.querySelectorAll('.control-tab').forEach(t => t.classList.remove('active'));
     document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('panel-' + tab).classList.add('active');
-
-    // Lazy load iframe
     if (tab === 'proyectar') {
         const iframe = document.getElementById('iframe-proyectar');
-        if (!iframe.src && iframe.dataset.src) {
-            iframe.src = iframe.dataset.src;
-        }
+        if (!iframe.src && iframe.dataset.src) iframe.src = iframe.dataset.src;
     }
 }
 
 // ===== TOAST =====
 function showToast(msg, type = 'success') {
-    const container = document.getElementById('toast-container');
+    const c = document.getElementById('toast-container');
     const id = 'toast-' + Date.now();
-    const icon = type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-circle-fill';
     const bg = type === 'success' ? '#34c759' : '#ff3b30';
-    container.insertAdjacentHTML('beforeend', `
-        <div id="${id}" class="toast align-items-center text-white border-0 show" role="alert" style="background: ${bg}; border-radius: 12px; min-width: 250px;">
-            <div class="d-flex">
-                <div class="toast-body"><i class="bi ${icon}"></i> ${msg}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        </div>
-    `);
-    setTimeout(() => { const el = document.getElementById(id); if (el) el.remove(); }, 3500);
+    c.insertAdjacentHTML('beforeend', `
+        <div id="${id}" class="toast align-items-center text-white border-0 show" role="alert" style="background:${bg}; border-radius:10px; min-width:220px; font-size:0.85rem;">
+            <div class="d-flex"><div class="toast-body py-2">${msg}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>
+        </div>`);
+    setTimeout(() => { const el = document.getElementById(id); if (el) el.remove(); }, 3000);
 }
 
-// ===== REGISTRAR VENTA =====
-const items = {};
-
 function fmt(n) { return '$' + n.toLocaleString('es-CL'); }
+
+// ===== REGISTRAR =====
+const items = {};
 
 function renderCart() {
     const list = document.getElementById('items-list');
@@ -259,141 +239,84 @@ function renderCart() {
         if (badge) { badge.textContent = items[id].cantidad; badge.classList.remove('d-none'); }
     });
 
-    if (keys.length === 0) {
-        list.innerHTML = '<p class="text-muted text-center small mb-0">Toca los productos para agregar</p>';
+    if (!keys.length) {
+        list.innerHTML = '<p class="text-muted text-center small mb-0" style="padding:0.5rem 0; font-size:0.75rem;">Toca productos para agregar</p>';
         document.getElementById('total_final').value = 0;
         document.getElementById('total-display').textContent = '$0';
         document.getElementById('btn-confirmar').disabled = true;
         return;
     }
 
-    let html = '', total = 0, totalUnidades = 0;
+    let html = '', total = 0;
     keys.forEach(id => {
-        const item = items[id], sub = item.precio * item.cantidad;
+        const it = items[id], sub = it.precio * it.cantidad;
         total += sub;
-        totalUnidades += item.cantidad;
-        html += `
-        <div class="d-flex align-items-center justify-content-between py-1 border-bottom">
-            <div class="flex-grow-1 me-2">
-                <strong style="font-size:0.82rem;">${item.nombre}</strong>
-                <div class="d-flex align-items-center gap-1 mt-1">
-                    <span class="text-muted" style="font-size:0.7rem;">$</span>
-                    <input type="number" class="form-control form-control-sm" value="${item.precio}" min="0"
-                           onchange="cambiarPrecio(${id}, this.value)" style="width:70px; height:24px; font-size:0.75rem; padding:0 4px; border-radius:6px;">
-                    <span class="text-muted" style="font-size:0.72rem;">x${item.cantidad} = ${fmt(sub)}</span>
-                </div>
-            </div>
-            <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                <button type="button" class="btn btn-outline-danger btn-qty" onclick="cambiar(${id},-1)">-</button>
-                <span class="fw-bold" style="min-width:18px;text-align:center;font-size:0.9rem;">${item.cantidad}</span>
-                <button type="button" class="btn btn-outline-success btn-qty" onclick="cambiar(${id},1)">+</button>
-            </div>
+        html += `<div class="d-flex align-items-center gap-1 py-1" style="font-size:0.78rem; border-bottom:1px solid #f0f0f0;">
+            <button type="button" class="btn btn-outline-danger d-flex align-items-center justify-content-center" onclick="cambiar(${id},-1)" style="width:22px;height:22px;padding:0;border-radius:50%;font-size:0.7rem;flex-shrink:0;">-</button>
+            <span class="fw-bold" style="min-width:14px;text-align:center;">${it.cantidad}</span>
+            <button type="button" class="btn btn-outline-success d-flex align-items-center justify-content-center" onclick="cambiar(${id},1)" style="width:22px;height:22px;padding:0;border-radius:50%;font-size:0.7rem;flex-shrink:0;">+</button>
+            <span class="flex-grow-1 text-truncate ms-1">${it.nombre}</span>
+            <span class="text-muted flex-shrink-0">${fmt(sub)}</span>
         </div>`;
     });
-
-    html += `<div class="d-flex justify-content-between pt-1" style="font-size:0.75rem;">
-        <span class="text-muted">${keys.length} productos, ${totalUnidades} unidades</span>
-        <strong class="text-success">${fmt(total)}</strong>
-    </div>`;
-
     list.innerHTML = html;
     document.getElementById('total-display').textContent = fmt(total);
     document.getElementById('total_final').value = total;
     document.getElementById('btn-confirmar').disabled = false;
 }
 
-function cambiar(id, delta) {
-    if (items[id]) { items[id].cantidad += delta; if (items[id].cantidad <= 0) delete items[id]; renderCart(); }
-}
-
-function cambiarPrecio(id, valor) {
-    if (items[id]) { items[id].precio = Math.max(0, parseInt(valor) || 0); renderCart(); }
-}
+function cambiar(id, d) { if (items[id]) { items[id].cantidad += d; if (items[id].cantidad <= 0) delete items[id]; renderCart(); } }
 
 document.querySelectorAll('.producto-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         const id = this.dataset.id;
-        if (items[id]) { items[id].cantidad++; }
-        else { items[id] = { producto_id: parseInt(id), nombre: this.dataset.nombre, precio: parseInt(this.dataset.precio), cantidad: 1 }; }
+        if (items[id]) items[id].cantidad++;
+        else items[id] = { producto_id: parseInt(id), nombre: this.dataset.nombre, precio: parseInt(this.dataset.precio), cantidad: 1 };
         renderCart();
     });
 });
 
 document.getElementById('form-venta-ctrl').addEventListener('submit', function(e) {
     e.preventDefault();
-    const formData = new FormData(this);
-    formData.set('items', JSON.stringify(Object.values(items).map(i => ({producto_id: i.producto_id, cantidad: i.cantidad, precio: i.precio}))));
-
+    const fd = new FormData(this);
+    fd.set('items', JSON.stringify(Object.values(items).map(i => ({producto_id: i.producto_id, cantidad: i.cantidad, precio: i.precio}))));
     document.getElementById('btn-confirmar').disabled = true;
-
-    fetch(BASE + '/ventas/nueva', {
-        method: 'POST',
-        headers: {'X-Requested-With': 'XMLHttpRequest'},
-        body: formData
-    })
+    fetch(BASE + '/ventas/nueva', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'}, body: fd })
     .then(r => r.json())
     .then(data => {
         if (data.success) {
             showToast(`Venta #${data.numero_orden} creada!`);
-            // Reset form
             Object.keys(items).forEach(k => delete items[k]);
             renderCart();
             document.getElementById('ctrl-cliente').value = '';
             document.getElementById('ctrl-notas').value = '';
             document.getElementById('ctrl-mp-efectivo').checked = true;
-        } else {
-            showToast(data.error || 'Error al crear venta', 'error');
-            document.getElementById('btn-confirmar').disabled = false;
-        }
+        } else { showToast(data.error || 'Error', 'error'); document.getElementById('btn-confirmar').disabled = false; }
     })
-    .catch(() => {
-        showToast('Error de conexion', 'error');
-        document.getElementById('btn-confirmar').disabled = false;
-    });
+    .catch(() => { showToast('Error de conexion', 'error'); document.getElementById('btn-confirmar').disabled = false; });
 });
 
-// ===== VENTAS TAB =====
+// ===== VENTAS =====
 let searchTimeout = null;
 
 function buscarVentasControl(q) {
     clearTimeout(searchTimeout);
-    const resultsDiv = document.getElementById('ctrl-buscar-results');
-    const listDiv = document.getElementById('ctrl-ventas-list');
-
-    if (!q.trim()) {
-        resultsDiv.classList.add('d-none');
-        listDiv.style.display = '';
-        return;
-    }
-
+    const res = document.getElementById('ctrl-buscar-results');
+    const list = document.getElementById('ctrl-ventas-list');
+    if (!q.trim()) { res.classList.add('d-none'); list.style.display = ''; return; }
     searchTimeout = setTimeout(() => {
-        fetch(BASE + '/ventas/buscar?q=' + encodeURIComponent(q))
-        .then(r => r.json())
-        .then(results => {
-            if (results.length === 0) {
-                resultsDiv.innerHTML = '<div class="tile text-center py-3"><p class="text-muted mb-0">Sin resultados</p></div>';
-            } else {
-                let html = '';
-                results.forEach(v => {
-                    const detalles = v.detalles.map(d => `${d.cantidad}x ${d.nombre}`).join(', ');
-                    html += `
-                    <div class="venta-item estado-${v.estado_entrega}" style="cursor:pointer; border-radius: 12px; margin-bottom: 4px; box-shadow: var(--tile-shadow);" onclick="expandVenta(${v.id}, this)">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>#${v.numero_orden}</strong>
-                                <small class="text-muted ms-1">${v.cliente_nombre}</small>
-                                <small class="text-muted ms-1">${v.created_at}</small>
-                                <div style="font-size:0.78rem;" class="text-muted">${detalles}</div>
-                            </div>
-                            <strong>$${v.total_final.toLocaleString('es-CL')}</strong>
-                        </div>
-                        <div class="venta-expand" id="venta-expand-${v.id}" style="display: none;"></div>
-                    </div>`;
-                });
-                resultsDiv.innerHTML = html;
+        fetch(BASE + '/ventas/buscar?q=' + encodeURIComponent(q)).then(r => r.json()).then(results => {
+            if (!results.length) { res.innerHTML = '<div class="text-center py-2 text-muted small">Sin resultados</div>'; }
+            else {
+                res.innerHTML = results.map(v => {
+                    const det = v.detalles.map(d => `${d.cantidad}x ${d.nombre}`).join(', ');
+                    return `<div class="venta-item estado-${v.estado_entrega}" style="cursor:pointer;border-radius:10px;margin-bottom:3px;" onclick="expandVenta(${v.id},this)">
+                        <div class="d-flex justify-content-between align-items-center"><div><strong>#${v.numero_orden}</strong> <small class="text-muted">${v.cliente_nombre}</small>
+                        <div style="font-size:0.72rem;" class="text-muted text-truncate">${det}</div></div><strong>${fmt(v.total_final)}</strong></div>
+                        <div class="venta-expand" id="venta-expand-${v.id}" style="display:none;"></div></div>`;
+                }).join('');
             }
-            resultsDiv.classList.remove('d-none');
-            listDiv.style.display = 'none';
+            res.classList.remove('d-none'); list.style.display = 'none';
         });
     }, 300);
 }
@@ -404,264 +327,220 @@ function filtrarVentas() {
     const params = new URLSearchParams();
     if (estado) params.set('estado_entrega', estado);
     if (pago) params.set('estado_pago', pago);
-
-    fetch(BASE + '/ventas/partial?' + params.toString())
-    .then(r => r.text())
-    .then(html => {
+    fetch(BASE + '/ventas/partial?' + params.toString()).then(r => r.text()).then(html => {
         document.getElementById('panel-ventas').innerHTML = `
-            <div class="d-flex gap-1 align-items-center mb-2" style="padding: 0 2px;">
-                <input type="text" class="form-control form-control-sm flex-fill" id="ctrl-buscar" placeholder="Buscar cliente o #orden..." style="border-radius: 10px; min-width: 0;" oninput="buscarVentasControl(this.value)">
-                <select id="ctrl-filtro-estado" class="form-select form-select-sm" style="border-radius: 10px; min-width: 0; max-width: 110px;" onchange="filtrarVentas()">
-                    <option value="">Entrega</option>
-                    <option value="pendiente" ${estado==='pendiente'?'selected':''}>Pendiente</option>
-                    <option value="en_preparacion" ${estado==='en_preparacion'?'selected':''}>En Prep.</option>
-                    <option value="listo" ${estado==='listo'?'selected':''}>Listo</option>
-                    <option value="entregado" ${estado==='entregado'?'selected':''}>Entregado</option>
+            <div class="d-flex gap-1 align-items-center mb-2">
+                <input type="text" class="form-control form-control-sm flex-fill" id="ctrl-buscar" placeholder="Buscar..." style="border-radius:8px;" oninput="buscarVentasControl(this.value)">
+                <select id="ctrl-filtro-estado" class="form-select form-select-sm" style="border-radius:8px;max-width:100px;" onchange="filtrarVentas()">
+                    <option value="">Entrega</option><option value="pendiente" ${estado==='pendiente'?'selected':''}>Pend.</option><option value="en_preparacion" ${estado==='en_preparacion'?'selected':''}>Prep.</option><option value="listo" ${estado==='listo'?'selected':''}>Listo</option><option value="entregado" ${estado==='entregado'?'selected':''}>Entreg.</option>
                 </select>
-                <select id="ctrl-filtro-pago" class="form-select form-select-sm" style="border-radius: 10px; min-width: 0; max-width: 100px;" onchange="filtrarVentas()">
-                    <option value="">Pago</option>
-                    <option value="pendiente" ${pago==='pendiente'?'selected':''}>Pendiente</option>
-                    <option value="parcial" ${pago==='parcial'?'selected':''}>Parcial</option>
-                    <option value="pagado" ${pago==='pagado'?'selected':''}>Pagado</option>
+                <select id="ctrl-filtro-pago" class="form-select form-select-sm" style="border-radius:8px;max-width:90px;" onchange="filtrarVentas()">
+                    <option value="">Pago</option><option value="pendiente" ${pago==='pendiente'?'selected':''}>Pend.</option><option value="parcial" ${pago==='parcial'?'selected':''}>Parcial</option><option value="pagado" ${pago==='pagado'?'selected':''}>Pagado</option>
                 </select>
             </div>
             <div id="ctrl-buscar-results" class="d-none mb-2"></div>
-            <div id="ctrl-ventas-list">${html}</div>
-        `;
+            <div id="ctrl-ventas-list">${html}</div>`;
     });
 }
+
+// ===== EXPAND VENTA =====
+let editItems = {}; // for inline editing
 
 function expandVenta(ventaId, el) {
-    const expandDiv = document.getElementById('venta-expand-' + ventaId);
-    if (!expandDiv) return;
+    const exp = document.getElementById('venta-expand-' + ventaId);
+    if (!exp) return;
+    if (exp.style.display !== 'none') { exp.style.display = 'none'; return; }
+    document.querySelectorAll('.venta-expand').forEach(d => d.style.display = 'none');
+    exp.innerHTML = '<div class="text-center py-2"><div class="spinner-border spinner-border-sm"></div></div>';
+    exp.style.display = 'block';
 
-    // Toggle
-    if (expandDiv.style.display !== 'none') {
-        expandDiv.style.display = 'none';
-        return;
-    }
+    fetch(BASE + '/ventas/' + ventaId + '/json').then(r => r.json()).then(v => {
+        const estados = ['pendiente','en_preparacion','listo','entregado'];
+        const labels = {'pendiente':'Pend.','en_preparacion':'Prep.','listo':'Listo','entregado':'Entreg.'};
+        const ci = estados.indexOf(v.estado_entrega);
 
-    // Close others
-    document.querySelectorAll('.venta-expand').forEach(d => { d.style.display = 'none'; });
+        const estadoBtns = estados.map((e,i) => {
+            if (i <= ci) return `<span class="badge bg-success" style="font-size:0.6rem;">${labels[e]}</span>`;
+            if (i === ci+1) return `<button type="button" class="btn btn-primary" onclick="event.stopPropagation();cambiarEstadoVenta(${v.id},'${e}')" style="border-radius:6px;font-size:0.65rem;padding:2px 8px;"><i class="bi bi-arrow-right"></i> ${labels[e]}</button>`;
+            return `<span class="badge bg-secondary" style="font-size:0.6rem;">${labels[e]}</span>`;
+        }).join(' ');
 
-    expandDiv.innerHTML = '<div class="text-center py-2"><div class="spinner-border spinner-border-sm"></div></div>';
-    expandDiv.style.display = 'block';
+        const pagoHtml = v.estado_pago === 'pagado'
+            ? `<span class="badge bg-success" style="font-size:0.65rem;">Pagado ${fmt(v.monto_pagado)}</span>`
+            : `<button type="button" class="btn btn-success" onclick="event.stopPropagation();marcarPagado(${v.id})" style="border-radius:6px;font-size:0.65rem;padding:2px 8px;"><i class="bi bi-cash"></i> Cobrar ${fmt(v.total_final)}</button>`;
 
-    fetch(BASE + '/ventas/' + ventaId + '/json')
-    .then(r => r.json())
-    .then(v => {
-        const estados = ['pendiente', 'en_preparacion', 'listo', 'entregado'];
-        const estadoLabels = {'pendiente': 'Pendiente', 'en_preparacion': 'En Prep.', 'listo': 'Listo', 'entregado': 'Entregado'};
-        const currentIdx = estados.indexOf(v.estado_entrega);
-
-        let detallesHtml = v.detalles.map(d =>
-            `<tr><td>${d.cantidad}x</td><td>${d.nombre_producto}</td><td class="text-end">$${d.precio_unitario.toLocaleString('es-CL')}</td><td class="text-end">$${d.subtotal.toLocaleString('es-CL')}</td></tr>`
+        const itemsHtml = v.detalles.map(d =>
+            `<div class="d-flex justify-content-between" style="font-size:0.78rem;padding:2px 0;border-bottom:1px solid #eee;"><span>${d.cantidad}x ${d.nombre_producto}</span><span class="text-muted">${fmt(d.subtotal)}</span></div>`
         ).join('');
 
-        let estadoBtns = estados.map((est, i) => {
-            if (i <= currentIdx) return `<span class="badge bg-success me-1" style="font-size:0.65rem;">${estadoLabels[est]}</span>`;
-            if (i === currentIdx + 1) return `<button type="button" class="btn btn-sm btn-primary me-1" style="border-radius:8px; font-size:0.7rem;" onclick="event.stopPropagation(); cambiarEstadoVenta(${v.id}, '${est}')">${estadoLabels[est]} <i class="bi bi-arrow-right"></i></button>`;
-            return `<span class="badge bg-secondary me-1" style="font-size:0.65rem;">${estadoLabels[est]}</span>`;
-        }).join('');
-
-        let pagoHtml = '';
-        if (v.estado_pago === 'pagado') {
-            pagoHtml = `<span class="badge bg-success">Pagado - $${v.monto_pagado.toLocaleString('es-CL')}</span>`;
-        } else {
-            pagoHtml = `<button type="button" class="btn btn-sm btn-success" style="border-radius:8px; font-size:0.75rem;" onclick="event.stopPropagation(); marcarPagado(${v.id})"><i class="bi bi-cash"></i> Marcar Pagado ($${v.total_final.toLocaleString('es-CL')})</button>`;
-        }
-
-        expandDiv.innerHTML = `
-            <div class="mt-2 pt-2 border-top" onclick="event.stopPropagation();" style="background: #f9fafb; margin: 0 -1rem; padding: 0.75rem 1rem 0.5rem; border-radius: 0 0 12px 12px;">
-                <!-- Items list compact -->
-                <div class="mb-2">
-                    ${v.detalles.map(d => `
-                        <div class="d-flex justify-content-between align-items-center py-1" style="font-size:0.82rem; border-bottom: 1px solid #eee;">
-                            <span>${d.cantidad}x <strong>${d.nombre_producto}</strong></span>
-                            <span class="text-muted">$${d.subtotal.toLocaleString('es-CL')}</span>
-                        </div>
-                    `).join('')}
-                    <div class="d-flex justify-content-between pt-1" style="font-size:0.85rem;">
-                        <strong>Total</strong>
-                        <strong class="text-success">$${v.total_final.toLocaleString('es-CL')}</strong>
-                    </div>
-                </div>
-                <!-- Actions row -->
-                <div class="d-flex flex-wrap gap-1 align-items-center mb-2">
-                    <small class="text-muted fw-bold me-1" style="font-size:0.7rem;">Entrega:</small>
-                    ${estadoBtns}
-                </div>
-                <div class="d-flex flex-wrap gap-1 align-items-center mb-2">
-                    <small class="text-muted fw-bold me-1" style="font-size:0.7rem;">Pago:</small>
-                    ${pagoHtml}
-                </div>
-                ${v.notas ? `<div class="mb-2" style="font-size:0.8rem;"><i class="bi bi-chat-left-text text-muted"></i> <span class="text-muted">${v.notas}</span></div>` : ''}
-                <a href="${BASE}/ventas/${v.id}/editar" class="btn btn-sm btn-outline-secondary w-100" style="border-radius:10px; font-size:0.75rem;" target="_blank"><i class="bi bi-pencil"></i> Editar pedido</a>
-            </div>
-        `;
+        exp.innerHTML = `<div onclick="event.stopPropagation();" style="background:#f4f6f8;margin:6px -1rem 0;padding:8px 12px;border-radius:0 0 10px 10px;">
+            ${itemsHtml}
+            <div class="d-flex justify-content-between fw-bold mt-1" style="font-size:0.82rem;"><span>Total</span><span class="text-success">${fmt(v.total_final)}</span></div>
+            <div class="d-flex flex-wrap gap-1 align-items-center mt-2">${estadoBtns}</div>
+            <div class="d-flex flex-wrap gap-1 align-items-center mt-1">${pagoHtml}</div>
+            ${v.notas ? `<div class="mt-1" style="font-size:0.75rem;color:#888;"><i class="bi bi-chat-left-text"></i> ${v.notas}</div>` : ''}
+            <button type="button" class="btn btn-sm w-100 mt-2 fw-semibold" onclick="event.stopPropagation();abrirEditorInline(${v.id})" style="border-radius:8px;font-size:0.75rem;background:#fff3e0;color:#e65100;border:1.5px solid #ffcc80;"><i class="bi bi-pencil"></i> Editar pedido</button>
+            <div id="editor-inline-${v.id}" style="display:none;"></div>
+        </div>`;
     });
 }
 
-function cambiarEstadoVenta(ventaId, nuevoEstado) {
-    const formData = new FormData();
-    formData.set('estado_entrega', nuevoEstado);
+// ===== INLINE EDITOR =====
+function abrirEditorInline(ventaId) {
+    const container = document.getElementById('editor-inline-' + ventaId);
+    if (container.style.display !== 'none') { container.style.display = 'none'; return; }
 
-    fetch(BASE + '/ventas/' + ventaId + '/estado', {
-        method: 'POST',
-        headers: {'X-Requested-With': 'XMLHttpRequest'},
-        body: formData
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToast('Estado actualizado');
-            expandVenta(ventaId, null);
-        }
+    // Load current items from the expand
+    fetch(BASE + '/ventas/' + ventaId + '/json').then(r => r.json()).then(v => {
+        editItems = {};
+        v.detalles.forEach(d => {
+            // Find product id by name match
+            const prodEntry = Object.entries(PRODUCTOS_DATA).find(([_, p]) => p.nombre === d.nombre_producto);
+            const prodId = prodEntry ? prodEntry[0] : 'custom-' + d.nombre_producto;
+            editItems[prodId] = { producto_id: prodEntry ? parseInt(prodEntry[0]) : null, nombre: d.nombre_producto, precio: d.precio_unitario, cantidad: d.cantidad };
+        });
+        renderEditor(ventaId, v.cliente_nombre);
+        container.style.display = 'block';
     });
+}
+
+function renderEditor(ventaId, clienteNombre) {
+    const container = document.getElementById('editor-inline-' + ventaId);
+    const keys = Object.keys(editItems);
+    let total = 0;
+
+    let itemsHtml = keys.map(id => {
+        const it = editItems[id], sub = it.precio * it.cantidad;
+        total += sub;
+        return `<div class="d-flex align-items-center gap-1 py-1" style="font-size:0.75rem;border-bottom:1px solid #ffe0b2;">
+            <button type="button" class="btn btn-outline-danger d-flex align-items-center justify-content-center" onclick="editCambiar('${id}',-1,${ventaId},'${(clienteNombre||'').replace(/'/g,"\\'")}')" style="width:20px;height:20px;padding:0;border-radius:50%;font-size:0.65rem;">-</button>
+            <span class="fw-bold" style="min-width:12px;text-align:center;">${it.cantidad}</span>
+            <button type="button" class="btn btn-outline-success d-flex align-items-center justify-content-center" onclick="editCambiar('${id}',1,${ventaId},'${(clienteNombre||'').replace(/'/g,"\\'")}')" style="width:20px;height:20px;padding:0;border-radius:50%;font-size:0.65rem;">+</button>
+            <span class="flex-grow-1 text-truncate">${it.nombre}</span>
+            <span class="text-muted">${fmt(sub)}</span>
+        </div>`;
+    }).join('');
+
+    // Product grid for adding
+    const prodsHtml = Object.values(PRODUCTOS_DATA).map(p =>
+        `<button type="button" class="btn btn-outline-warning btn-sm d-flex flex-column align-items-center justify-content-center" onclick="editAgregar(${p.id},${ventaId},'${(clienteNombre||'').replace(/'/g,"\\'")}')" style="min-height:45px;padding:3px;border-radius:8px;font-size:0.6rem;width:100%;border-width:1.5px;">
+            <span class="fw-bold lh-1 text-center text-truncate w-100">${p.nombre}</span>
+            <span class="text-success" style="font-size:0.65rem;">${fmt(p.precio)}</span>
+        </button>`
+    ).join('');
+
+    container.innerHTML = `
+        <div style="background:#fff3e0;border:1.5px solid #ffcc80;border-radius:10px;padding:8px;margin-top:8px;">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong style="font-size:0.78rem;color:#e65100;"><i class="bi bi-pencil-square"></i> Editando</strong>
+                <strong style="font-size:0.85rem;color:#e65100;">${fmt(total)}</strong>
+            </div>
+            ${itemsHtml || '<div class="text-center text-muted small py-1">Sin productos</div>'}
+            <div class="row g-1 mt-2 mb-2">${Object.values(PRODUCTOS_DATA).map(p =>
+                `<div class="col-3"><button type="button" class="btn btn-outline-warning btn-sm d-flex flex-column align-items-center justify-content-center w-100" onclick="editAgregar(${p.id},${ventaId},'${(clienteNombre||'').replace(/'/g,"\\'")}')" style="min-height:40px;padding:2px;border-radius:7px;font-size:0.58rem;border-width:1.5px;">
+                    <span class="fw-bold lh-1 text-center text-truncate w-100">${p.nombre}</span>
+                    <span class="text-success" style="font-size:0.6rem;">${fmt(p.precio)}</span>
+                </button></div>`
+            ).join('')}</div>
+            <div class="d-flex gap-1">
+                <button type="button" class="btn btn-secondary btn-sm flex-grow-1" onclick="document.getElementById('editor-inline-${ventaId}').style.display='none'" style="border-radius:8px;font-size:0.75rem;">Cancelar</button>
+                <button type="button" class="btn btn-sm flex-grow-1 fw-bold" onclick="guardarEdicion(${ventaId},'${(clienteNombre||'').replace(/'/g,"\\'")}')" style="border-radius:8px;font-size:0.75rem;background:#e65100;color:white;">Guardar</button>
+            </div>
+        </div>`;
+}
+
+function editCambiar(id, delta, ventaId, cliente) {
+    if (editItems[id]) {
+        editItems[id].cantidad += delta;
+        if (editItems[id].cantidad <= 0) delete editItems[id];
+        renderEditor(ventaId, cliente);
+    }
+}
+
+function editAgregar(prodId, ventaId, cliente) {
+    const p = PRODUCTOS_DATA[prodId];
+    if (!p) return;
+    if (editItems[prodId]) editItems[prodId].cantidad++;
+    else editItems[prodId] = { producto_id: p.id, nombre: p.nombre, precio: p.precio, cantidad: 1 };
+    renderEditor(ventaId, cliente);
+}
+
+function guardarEdicion(ventaId, cliente) {
+    const itemsList = Object.values(editItems).filter(i => i.producto_id);
+    if (!itemsList.length) { showToast('Debe tener al menos un producto', 'error'); return; }
+
+    const fd = new FormData();
+    fd.set('cliente_nombre', cliente);
+    fd.set('items', JSON.stringify(itemsList.map(i => ({producto_id: i.producto_id, cantidad: i.cantidad, precio: i.precio}))));
+
+    fetch(BASE + '/ventas/' + ventaId + '/editar', {
+        method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'}, body: fd
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            showToast('Pedido actualizado');
+            expandVenta(ventaId, null); // Re-expand to refresh
+        } else { showToast(data.error || 'Error', 'error'); }
+    }).catch(() => showToast('Error de conexion', 'error'));
+}
+
+// ===== ACCIONES VENTA =====
+function cambiarEstadoVenta(ventaId, nuevoEstado) {
+    const fd = new FormData(); fd.set('estado_entrega', nuevoEstado);
+    fetch(BASE + '/ventas/' + ventaId + '/estado', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'}, body: fd })
+    .then(r => r.json()).then(data => { if (data.success) { showToast('Estado actualizado'); expandVenta(ventaId, null); } });
 }
 
 function marcarPagado(ventaId) {
-    fetch(BASE + '/ventas/' + ventaId + '/marcar-pagado', {
-        method: 'POST',
-        headers: {'X-Requested-With': 'XMLHttpRequest'}
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToast('Marcado como pagado');
-            expandVenta(ventaId, null);
-        }
-    });
+    fetch(BASE + '/ventas/' + ventaId + '/marcar-pagado', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'} })
+    .then(r => r.json()).then(data => { if (data.success) { showToast('Pagado'); expandVenta(ventaId, null); } });
 }
 
-// ===== PRODUCTOS TAB =====
-function refreshProductos() {
-    fetch(BASE + '/productos/partial')
-    .then(r => r.text())
-    .then(html => { document.getElementById('productos-container').innerHTML = html; });
-}
+// ===== PRODUCTOS =====
+function refreshProductos() { fetch(BASE + '/productos/partial').then(r => r.text()).then(h => document.getElementById('productos-container').innerHTML = h); }
 
 function crearProducto(e) {
-    e.preventDefault();
-    const form = e.target;
-    const formData = new FormData(form);
-
-    fetch(BASE + '/productos', {
-        method: 'POST',
-        headers: {'X-Requested-With': 'XMLHttpRequest'},
-        body: formData
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToast(`Producto "${data.nombre}" creado`);
-            bootstrap.Modal.getInstance(document.getElementById('modal-agregar-prod')).hide();
-            form.reset();
-            refreshProductos();
-        } else {
-            showToast(data.error || 'Error', 'error');
-        }
-    })
-    .catch(() => showToast('Error de conexion', 'error'));
-    return false;
+    e.preventDefault(); const fd = new FormData(e.target);
+    fetch(BASE + '/productos', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'}, body: fd })
+    .then(r => r.json()).then(data => {
+        if (data.success) { showToast(`"${data.nombre}" creado`); bootstrap.Modal.getInstance(document.getElementById('modal-agregar-prod')).hide(); e.target.reset(); refreshProductos(); }
+        else showToast(data.error || 'Error', 'error');
+    }).catch(() => showToast('Error', 'error')); return false;
 }
 
-function editarProducto(e, productoId) {
-    e.preventDefault();
-    const form = e.target;
-    const formData = new FormData(form);
-
-    fetch(BASE + '/productos/' + productoId + '/editar', {
-        method: 'POST',
-        headers: {'X-Requested-With': 'XMLHttpRequest'},
-        body: formData
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToast('Producto actualizado');
-            bootstrap.Modal.getInstance(document.getElementById('editar-' + productoId)).hide();
-            refreshProductos();
-        } else {
-            showToast(data.error || 'Error', 'error');
-        }
-    })
-    .catch(() => showToast('Error de conexion', 'error'));
-    return false;
+function editarProducto(e, id) {
+    e.preventDefault(); const fd = new FormData(e.target);
+    fetch(BASE + '/productos/' + id + '/editar', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'}, body: fd })
+    .then(r => r.json()).then(data => {
+        if (data.success) { showToast('Actualizado'); bootstrap.Modal.getInstance(document.getElementById('editar-' + id)).hide(); refreshProductos(); }
+        else showToast(data.error || 'Error', 'error');
+    }).catch(() => showToast('Error', 'error')); return false;
 }
 
-function toggleProducto(productoId) {
-    fetch(BASE + '/productos/' + productoId + '/toggle', {
-        method: 'POST',
-        headers: {'X-Requested-With': 'XMLHttpRequest'}
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToast(data.activo ? 'Producto activado' : 'Producto desactivado');
-            refreshProductos();
-        }
-    });
+function toggleProducto(id) {
+    fetch(BASE + '/productos/' + id + '/toggle', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'} })
+    .then(r => r.json()).then(data => { if (data.success) { showToast(data.activo ? 'Activado' : 'Desactivado'); refreshProductos(); } });
 }
 
-// ===== PROMOCIONES TAB =====
-function refreshPromos() {
-    fetch(BASE + '/promociones/partial')
-    .then(r => r.text())
-    .then(html => { document.getElementById('promos-container').innerHTML = html; });
-}
+// ===== PROMOS =====
+function refreshPromos() { fetch(BASE + '/promociones/partial').then(r => r.text()).then(h => document.getElementById('promos-container').innerHTML = h); }
 
 function crearPromo(e) {
-    e.preventDefault();
-    const form = e.target;
-    const formData = new FormData(form);
-
-    fetch(BASE + '/promociones', {
-        method: 'POST',
-        headers: {'X-Requested-With': 'XMLHttpRequest'},
-        body: formData
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToast(`Promo "${data.nombre}" creada`);
-            bootstrap.Modal.getInstance(document.getElementById('modal-promo')).hide();
-            form.reset();
-            refreshPromos();
-        } else {
-            showToast(data.error || 'Error', 'error');
-        }
-    })
-    .catch(() => showToast('Error de conexion', 'error'));
-    return false;
+    e.preventDefault(); const fd = new FormData(e.target);
+    fetch(BASE + '/promociones', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'}, body: fd })
+    .then(r => r.json()).then(data => {
+        if (data.success) { showToast(`"${data.nombre}" creada`); bootstrap.Modal.getInstance(document.getElementById('modal-promo')).hide(); e.target.reset(); refreshPromos(); }
+        else showToast(data.error || 'Error', 'error');
+    }).catch(() => showToast('Error', 'error')); return false;
 }
 
-function togglePromo(promoId) {
-    fetch(BASE + '/promociones/' + promoId + '/toggle', {
-        method: 'POST',
-        headers: {'X-Requested-With': 'XMLHttpRequest'}
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToast(data.activa ? 'Promo activada' : 'Promo desactivada');
-            refreshPromos();
-        }
-    });
+function togglePromo(id) {
+    fetch(BASE + '/promociones/' + id + '/toggle', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'} })
+    .then(r => r.json()).then(data => { if (data.success) { showToast(data.activa ? 'Activada' : 'Desactivada'); refreshPromos(); } });
 }
 
-function eliminarPromo(promoId) {
-    fetch(BASE + '/promociones/' + promoId + '/eliminar', {
-        method: 'POST',
-        headers: {'X-Requested-With': 'XMLHttpRequest'}
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showToast('Promo eliminada');
-            refreshPromos();
-        }
-    });
+function eliminarPromo(id) {
+    fetch(BASE + '/promociones/' + id + '/eliminar', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'} })
+    .then(r => r.json()).then(data => { if (data.success) { showToast('Eliminada'); refreshPromos(); } });
 }
 </script>
 {% endblock %}
