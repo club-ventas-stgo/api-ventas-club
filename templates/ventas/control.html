@@ -34,75 +34,73 @@
 
 <!-- ==================== TAB: REGISTRAR ==================== -->
 <div class="tab-panel active" id="panel-registrar">
-    <div class="pos-container">
+    <div class="ctrl-form">
         <form id="form-venta-ctrl">
             <input type="hidden" name="items" id="ctrl-items-json">
-            <div class="tile" style="padding: 0; overflow: hidden;">
+            <div class="ctrl-card">
                 {% if promociones_activas %}
-                <div style="padding: 4px 10px; background: #fff8e1; border-bottom: 1px solid #ffe082; font-size: 0.7rem;">
-                    <i class="bi bi-tag-fill text-warning"></i>
+                <div class="ctrl-promo-bar">
+                    <i class="bi bi-tag-fill"></i>
                     {% for promo in promociones_activas %}
-                    <span class="fw-semibold">{{ promo.nombre }}{% if not loop.last %},{% endif %}</span>
+                    <span>{{ promo.nombre }}{% if not loop.last %}, {% endif %}</span>
                     {% endfor %}
                 </div>
                 {% endif %}
 
-                <div class="pos-layout">
-                    <!-- LEFT: Products -->
-                    <div class="pos-products">
-                        {% if productos_activos %}
-                        <div class="pos-grid">
-                            {% for p in productos_activos %}
-                            <button type="button" class="pos-prod-btn {{ 'opacity-50' if p.stock_disponible is not none and p.stock_disponible <= 0 }}"
-                                    data-id="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}" data-stock="{{ p.stock_disponible if p.stock_disponible is not none else '' }}"
-                                    {{ 'disabled' if p.stock_disponible is not none and p.stock_disponible <= 0 }}>
-                                {% if p.foto %}<img src="{{ p.foto }}">{% endif %}
-                                <span class="pos-prod-name">{{ p.nombre }}</span>
-                                <span class="pos-prod-price">${{ '{:,}'.format(p.precio) }}</span>
-                                {% if p.stock_disponible is not none and p.stock_disponible <= 10 %}
-                                <span class="badge {{ 'bg-warning text-dark' if p.stock_disponible > 0 else 'bg-danger' }}" style="font-size:0.48rem;padding:1px 3px;border-radius:3px;position:absolute;top:2px;left:2px;">{{ p.stock_disponible }}</span>
-                                {% endif %}
-                                <span class="badge bg-danger rounded-pill badge-qty d-none" id="badge-{{ p.id }}">0</span>
-                            </button>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <div class="text-center py-3">
-                            <p class="text-muted mb-1 small">Sin productos.</p>
-                            <button type="button" class="btn btn-sm btn-primary" style="border-radius:8px;" onclick="switchTab('productos')">Agregar</button>
-                        </div>
+                {% if productos_activos %}
+                <div class="ctrl-products">
+                    {% for p in productos_activos %}
+                    <button type="button" class="ctrl-prod {{ 'opacity-50' if p.stock_disponible is not none and p.stock_disponible <= 0 }}"
+                            data-id="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}" data-stock="{{ p.stock_disponible if p.stock_disponible is not none else '' }}"
+                            {{ 'disabled' if p.stock_disponible is not none and p.stock_disponible <= 0 }}>
+                        {% if p.foto %}<img src="{{ p.foto }}">{% endif %}
+                        <span class="ctrl-prod-name">{{ p.nombre }}</span>
+                        <span class="ctrl-prod-price">${{ '{:,}'.format(p.precio) }}</span>
+                        {% if p.stock_disponible is not none and p.stock_disponible <= 10 %}
+                        <span class="badge {{ 'bg-warning text-dark' if p.stock_disponible > 0 else 'bg-danger' }}" style="font-size:0.45rem;padding:1px 3px;border-radius:3px;position:absolute;top:1px;left:1px;">{{ p.stock_disponible }}</span>
                         {% endif %}
-                    </div>
+                        <span class="badge bg-danger rounded-pill ctrl-badge-qty d-none" id="badge-{{ p.id }}">0</span>
+                    </button>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-2">
+                    <p class="text-muted mb-1 small">Sin productos.</p>
+                    <button type="button" class="btn btn-sm btn-primary" style="border-radius:8px;" onclick="switchTab('productos')">Agregar</button>
+                </div>
+                {% endif %}
 
-                    <!-- RIGHT: Cart -->
-                    <div class="pos-cart">
-                        <div class="pos-cart-header">
-                            <strong><i class="bi bi-receipt"></i> Pedido</strong>
-                            <span id="total-display" class="fw-bold">$0</span>
-                        </div>
-                        <div id="items-list" class="pos-cart-items">
-                            <p class="text-muted text-center small mb-0">Toca productos</p>
-                        </div>
-                        <div class="pos-cart-footer">
-                            <div class="d-flex gap-1 align-items-center mb-1">
-                                <input type="text" class="form-control form-control-sm" name="cliente_nombre" id="ctrl-cliente" placeholder="Cliente" maxlength="100" style="border-radius:6px;font-size:0.75rem;height:28px;flex:1;">
-                                <input type="text" class="form-control form-control-sm" name="notas" id="ctrl-notas" placeholder="Notas" style="border-radius:6px;font-size:0.75rem;height:28px;flex:1;">
-                            </div>
-                            <div class="d-flex gap-1 align-items-center">
-                                <div class="btn-group flex-shrink-0" role="group">
-                                    <input type="radio" class="btn-check" name="metodo_pago" id="ctrl-mp-efectivo" value="efectivo" checked>
-                                    <label class="btn btn-outline-secondary" for="ctrl-mp-efectivo" style="border-radius:6px 0 0 6px;font-size:0.68rem;padding:3px 8px;"><i class="bi bi-cash"></i> Efect.</label>
-                                    <input type="radio" class="btn-check" name="metodo_pago" id="ctrl-mp-transferencia" value="transferencia">
-                                    <label class="btn btn-outline-secondary" for="ctrl-mp-transferencia" style="border-radius:0 6px 6px 0;font-size:0.68rem;padding:3px 8px;"><i class="bi bi-phone"></i> Transf.</label>
-                                </div>
-                                <input type="hidden" id="total_final" name="total_final" value="0">
-                                <button type="submit" class="btn btn-success btn-sm fw-bold flex-grow-1" id="btn-confirmar" disabled style="border-radius:8px;font-size:0.82rem;padding:4px;">
-                                    <i class="bi bi-check-lg"></i> Confirmar
-                                </button>
-                            </div>
+                <div class="ctrl-cart">
+                    <div class="ctrl-cart-header">
+                        <span><i class="bi bi-receipt"></i> Pedido</span>
+                        <span id="total-display" class="fw-bold">$0</span>
+                    </div>
+                    <div id="items-list" class="ctrl-cart-items">
+                        <p class="text-muted text-center small mb-0" style="padding:4px 0;">Toca productos</p>
+                    </div>
+                </div>
+
+                <div class="ctrl-row">
+                    <div class="ctrl-group">
+                        <input type="text" name="cliente_nombre" id="ctrl-cliente" placeholder="Cliente" maxlength="100">
+                    </div>
+                    <div class="ctrl-group">
+                        <input type="text" name="notas" id="ctrl-notas" placeholder="Notas">
+                    </div>
+                    <div class="ctrl-group-narrow">
+                        <div class="ctrl-pago-toggle">
+                            <input type="radio" class="btn-check" name="metodo_pago" id="ctrl-mp-efectivo" value="efectivo" checked>
+                            <label for="ctrl-mp-efectivo"><i class="bi bi-cash"></i> Efect.</label>
+                            <input type="radio" class="btn-check" name="metodo_pago" id="ctrl-mp-transferencia" value="transferencia">
+                            <label for="ctrl-mp-transferencia"><i class="bi bi-phone"></i> Transf.</label>
                         </div>
                     </div>
                 </div>
+
+                <input type="hidden" id="total_final" name="total_final" value="0">
+                <button type="submit" class="ctrl-submit" id="btn-confirmar" disabled>
+                    <i class="bi bi-check-lg"></i> Confirmar
+                </button>
             </div>
         </form>
     </div>
@@ -241,14 +239,14 @@ function renderCart() {
     const list = document.getElementById('items-list');
     const keys = Object.keys(items);
 
-    document.querySelectorAll('.badge-qty').forEach(b => b.classList.add('d-none'));
+    document.querySelectorAll('.ctrl-badge-qty').forEach(b => b.classList.add('d-none'));
     keys.forEach(id => {
         const badge = document.getElementById('badge-' + id);
         if (badge) { badge.textContent = items[id].cantidad; badge.classList.remove('d-none'); }
     });
 
     if (!keys.length) {
-        list.innerHTML = '<p class="text-muted text-center small mb-0" style="padding:0.5rem 0; font-size:0.75rem;">Toca productos para agregar</p>';
+        list.innerHTML = '<p class="text-muted text-center small mb-0" style="padding:4px 0;">Toca productos</p>';
         document.getElementById('total_final').value = 0;
         document.getElementById('total-display').textContent = '$0';
         document.getElementById('btn-confirmar').disabled = true;
@@ -275,7 +273,7 @@ function renderCart() {
 
 function cambiar(id, d) { if (items[id]) { items[id].cantidad += d; if (items[id].cantidad <= 0) delete items[id]; renderCart(); } }
 
-document.querySelectorAll('.producto-btn').forEach(btn => {
+document.querySelectorAll('.ctrl-prod').forEach(btn => {
     btn.addEventListener('click', function() {
         const id = this.dataset.id;
         if (items[id]) items[id].cantidad++;
