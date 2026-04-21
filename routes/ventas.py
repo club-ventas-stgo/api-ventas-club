@@ -429,6 +429,22 @@ def buscar(codigo):
     return jsonify(results)
 
 
+@ventas_bp.route('/<codigo>/ventas/clientes')
+def clientes(codigo):
+    """Autocomplete: return unique client names matching query."""
+    stand = get_stand_or_404(codigo)
+    q = request.args.get('q', '').strip()
+    if not q or len(q) < 2:
+        return jsonify([])
+    nombres = db.session.query(Venta.cliente_nombre).filter(
+        Venta.stand_id == stand.id,
+        Venta.cliente_nombre.isnot(None),
+        Venta.cliente_nombre != '',
+        Venta.cliente_nombre.ilike(f'%{q}%')
+    ).distinct().limit(6).all()
+    return jsonify([n[0] for n in nombres if n[0]])
+
+
 @ventas_bp.route('/<codigo>/ventas/<int:venta_id>/pago', methods=['POST'])
 def actualizar_pago(codigo, venta_id):
     """API endpoint for inline payment updates."""

@@ -317,7 +317,7 @@ function refreshVentas() {
 }
 
 function renderVentaCardJS(v) {
-    const det = v.detalles.map(d => `<span>${d.cantidad}x ${d.nombre}</span>`).join('<span class="vc-sep">&middot;</span>');
+    const det = v.detalles.map(d => `<span>${d.cantidad}x ${d.nombre || d.nombre_producto}</span>`).join('<span class="vc-sep">&middot;</span>');
     const estados = ['pendiente','en_preparacion','listo','entregado'];
     const labels = {'pendiente':'Pend.','en_preparacion':'Prep.','listo':'Listo','entregado':'Entregado'};
     const ci = estados.indexOf(v.estado_entrega);
@@ -335,27 +335,89 @@ function renderVentaCardJS(v) {
         ? `<span class="vc-pagado-badge"><i class="bi bi-check-lg"></i> Pagado</span>`
         : `<button class="vc-btn-pago" onclick="marcarPagado(${v.id})"><i class="bi bi-cash-coin"></i> Pagado ${fmt(v.total_final)}</button>`;
 
-    return `<div class="vc" id="vc-${v.id}"><div class="d-flex"><div class="vc-stripe st-${v.estado_entrega}"></div><div class="vc-body">
+    const notasHtml = v.notas ? `<div class="vc-notas"><i class="bi bi-chat-left-text"></i> ${v.notas}</div>` : '';
+
+    return `<div class="vc vc-${v.estado_entrega}" id="vc-${v.id}"><div class="d-flex"><div class="vc-stripe st-${v.estado_entrega}"></div><div class="vc-body">
         <div class="vc-top"><span class="vc-order">#${v.numero_orden}</span><span class="vc-cliente">${v.cliente_nombre || 'Sin nombre'}</span><span class="vc-time">${v.created_at||''}</span><span class="vc-total">${fmt(v.total_final)}</span></div>
         <div class="vc-items">${det}</div>
+        ${notasHtml}
         <div class="vc-actions">${estadoHtml}${pagoHtml}<button class="vc-btn-edit" onclick="abrirEditorInline(${v.id})"><i class="bi bi-pencil"></i></button></div>
         <div id="editor-inline-${v.id}" style="display:none;"></div>
     </div></div></div>`;
 }
 
+let acTimeout = null;
+
 function buscarVentasControl(q) {
     clearTimeout(searchTimeout);
     const res = document.getElementById('ctrl-buscar-results');
     const list = document.getElementById('ctrl-ventas-list');
+    hideAutocomplete();
     if (!q.trim()) { res.classList.add('d-none'); list.style.display = ''; return; }
+
+    // Show autocomplete suggestions
+    clearTimeout(acTimeout);
+    if (q.trim().length >= 2 && !q.trim().match(/^\d+$/)) {
+        acTimeout = setTimeout(() => {
+            fetch(BASE + '/ventas/clientes?q=' + encodeURIComponent(q)).then(r => r.json()).then(nombres => {
+                showAutocomplete(nombres, q);
+            });
+        }, 200);
+    }
+
     searchTimeout = setTimeout(() => {
         fetch(BASE + '/ventas/buscar?q=' + encodeURIComponent(q)).then(r => r.json()).then(results => {
             if (!results.length) { res.innerHTML = '<div class="text-center py-3" style="color:#9ca3af;"><i class="bi bi-search" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sin resultados</div>'; }
             else { res.innerHTML = results.map(v => renderVentaCardJS(v)).join(''); }
             res.classList.remove('d-none'); list.style.display = 'none';
         });
-    }, 300);
+    }, 400);
 }
+
+function showAutocomplete(nombres, q) {
+    let acList = document.getElementById('ctrl-autocomplete');
+    if (!acList) {
+        const wrap = document.querySelector('.ventas-search-bar');
+        if (!wrap) return;
+        wrap.style.position = 'relative';
+        acList = document.createElement('div');
+        acList.id = 'ctrl-autocomplete';
+        acList.className = 'autocomplete-list';
+        wrap.appendChild(acList);
+    }
+    if (!nombres.length) { acList.remove(); return; }
+    const regex = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+    acList.innerHTML = nombres.map(n =>
+        `<div class="autocomplete-item" onmousedown="selectCliente('${n.replace(/'/g, "\\'")}')">
+            <i class="bi bi-person"></i>
+            <span>${n.replace(regex, '<strong>$1</strong>')}</span>
+        </div>`
+    ).join('');
+}
+
+function hideAutocomplete() {
+    const ac = document.getElementById('ctrl-autocomplete');
+    if (ac) ac.remove();
+}
+
+function selectCliente(nombre) {
+    const input = document.getElementById('ctrl-buscar');
+    if (input) { input.value = nombre; }
+    hideAutocomplete();
+    clearTimeout(searchTimeout);
+    const res = document.getElementById('ctrl-buscar-results');
+    const list = document.getElementById('ctrl-ventas-list');
+    fetch(BASE + '/ventas/buscar?q=' + encodeURIComponent(nombre)).then(r => r.json()).then(results => {
+        if (!results.length) { res.innerHTML = '<div class="text-center py-3" style="color:#9ca3af;"><i class="bi bi-search" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sin resultados</div>'; }
+        else { res.innerHTML = results.map(v => renderVentaCardJS(v)).join(''); }
+        res.classList.remove('d-none'); list.style.display = 'none';
+    });
+}
+
+// Hide autocomplete on blur
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.ventas-search-bar')) hideAutocomplete();
+});
 
 function filtrarVentas() {
     const pago = document.getElementById('ctrl-filtro-pago').value;
@@ -473,15 +535,30 @@ function guardarEdicion(ventaId, cliente) {
 }
 
 // ===== ACCIONES VENTA =====
+function updateCardInPlace(ventaId) {
+    fetch(BASE + '/ventas/' + ventaId + '/json')
+    .then(r => r.json())
+    .then(v => {
+        // Map detalles field names for renderVentaCardJS
+        v.detalles = v.detalles.map(d => ({...d, nombre: d.nombre_producto}));
+        const el = document.getElementById('vc-' + ventaId);
+        if (el) {
+            el.outerHTML = renderVentaCardJS(v);
+            const newEl = document.getElementById('vc-' + ventaId);
+            if (newEl) { newEl.classList.add('vc-updated'); setTimeout(() => newEl.classList.remove('vc-updated'), 500); }
+        }
+    });
+}
+
 function cambiarEstadoVenta(ventaId, nuevoEstado) {
     const fd = new FormData(); fd.set('estado_entrega', nuevoEstado);
     fetch(BASE + '/ventas/' + ventaId + '/estado', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'}, body: fd })
-    .then(r => r.json()).then(data => { if (data.success) { showToast('Estado actualizado'); refreshVentas(); } });
+    .then(r => r.json()).then(data => { if (data.success) { showToast('Estado actualizado'); updateCardInPlace(ventaId); } });
 }
 
 function marcarPagado(ventaId) {
     fetch(BASE + '/ventas/' + ventaId + '/marcar-pagado', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'} })
-    .then(r => r.json()).then(data => { if (data.success) { showToast('Pagado'); refreshVentas(); } });
+    .then(r => r.json()).then(data => { if (data.success) { showToast('Pagado'); updateCardInPlace(ventaId); } });
 }
 
 // ===== PRODUCTOS =====

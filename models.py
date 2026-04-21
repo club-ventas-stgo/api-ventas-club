@@ -89,6 +89,8 @@ class DetalleVenta(db.Model):
     precio_unitario = db.Column(db.Integer, nullable=False)
     subtotal = db.Column(db.Integer, nullable=False)
 
+    producto = db.relationship('Producto', lazy='select')
+
 
 class Integrante(db.Model):
     __tablename__ = 'integrantes'

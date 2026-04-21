@@ -1,7 +1,7 @@
 from datetime import timezone
 from zoneinfo import ZoneInfo
 from flask import Blueprint, render_template, jsonify
-from models import Venta
+from models import Venta, Producto
 from routes.stand import get_stand_or_404
 
 CHILE_TZ = ZoneInfo('America/Santiago')
@@ -20,7 +20,8 @@ def panel(codigo):
         Venta.stand_id == stand.id,
         Venta.estado_entrega == 'listo'
     ).order_by(Venta.created_at.asc()).all()
-    return render_template('cocina/panel.html', stand=stand, en_preparacion=en_preparacion, listos=listos)
+    productos = Producto.query.filter_by(stand_id=stand.id).all()
+    return render_template('cocina/panel.html', stand=stand, en_preparacion=en_preparacion, listos=listos, productos=productos)
 
 
 @cocina_bp.route('/<codigo>/proyectar')
