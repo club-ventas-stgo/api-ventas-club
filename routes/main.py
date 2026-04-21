@@ -3,7 +3,7 @@ import random
 import base64
 from io import BytesIO
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from PIL import Image
+from PIL import Image, ImageOps
 from app import db
 from models import Stand
 
@@ -20,7 +20,8 @@ def generar_codigo(length=6):
 
 def comprimir_imagen(file_storage, max_size=800):
     img = Image.open(file_storage)
-    if img.mode == 'RGBA':
+    img = ImageOps.exif_transpose(img)
+    if img.mode != 'RGB':
         img = img.convert('RGB')
     img.thumbnail((max_size, max_size))
     buffer = BytesIO()

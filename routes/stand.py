@@ -191,6 +191,21 @@ def toggle_producto(codigo, producto_id):
     return redirect(url_for('stand.productos', codigo=codigo))
 
 
+@stand_bp.route('/<codigo>/productos/<int:producto_id>/eliminar', methods=['POST'])
+def eliminar_producto(codigo, producto_id):
+    stand = get_stand_or_404(codigo)
+    producto = Producto.query.filter_by(id=producto_id, stand_id=stand.id).first_or_404()
+    nombre = producto.nombre
+    db.session.delete(producto)
+    db.session.commit()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True})
+
+    flash(f'Producto "{nombre}" eliminado.', 'info')
+    return redirect(url_for('stand.productos', codigo=codigo))
+
+
 @stand_bp.route('/<codigo>/promociones', methods=['GET', 'POST'])
 def promociones(codigo):
     stand = get_stand_or_404(codigo)

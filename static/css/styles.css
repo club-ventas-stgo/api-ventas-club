@@ -836,7 +836,7 @@ img {
 
 .ctrl-products {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 5px;
     margin-bottom: 10px;
 }
@@ -850,7 +850,7 @@ img {
     border-radius: 12px;
     background: #f9fafb;
     padding: 5px 3px;
-    min-height: 52px;
+    min-height: 68px;
     cursor: pointer;
     transition: all 0.1s ease;
     position: relative;
@@ -867,10 +867,10 @@ img {
 .ctrl-prod:hover:not(:disabled) { border-color: #007aff; }
 
 .ctrl-prod img {
-    width: 26px;
-    height: 26px;
+    width: 40px;
+    height: 40px;
     object-fit: cover;
-    border-radius: 6px;
+    border-radius: 8px;
 }
 
 .ctrl-prod-name {
@@ -1022,11 +1022,11 @@ img {
 @media (max-width: 576px) {
     .ctrl-form { padding: 0; }
     .ctrl-card { padding: 10px 12px; border-radius: 14px; }
-    .ctrl-products { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 4px; }
-    .ctrl-prod { min-height: 46px; padding: 4px 2px; border-radius: 10px; }
+    .ctrl-products { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 4px; }
+    .ctrl-prod { min-height: 58px; padding: 4px 2px; border-radius: 10px; }
     .ctrl-prod-name { font-size: 0.6rem; }
     .ctrl-prod-price { font-size: 0.6rem; }
-    .ctrl-prod img { width: 22px; height: 22px; }
+    .ctrl-prod img { width: 34px; height: 34px; }
     .ctrl-group input { font-size: 0.78rem; padding: 5px 10px; }
     .ctrl-pago-toggle label { padding: 4px 8px; font-size: 0.68rem; }
     .ctrl-submit { padding: 7px; font-size: 0.82rem; }

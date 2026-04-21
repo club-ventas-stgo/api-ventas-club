@@ -73,7 +73,11 @@
                 <div class="ctrl-cart">
                     <div class="ctrl-cart-header">
                         <span><i class="bi bi-receipt"></i> Pedido</span>
-                        <span id="total-display" class="fw-bold">$0</span>
+                        <span class="d-flex align-items-center gap-1">
+                            <span class="fw-bold">$</span>
+                            <input type="number" id="total_final" name="total_final" value="0" min="0"
+                                   style="width:70px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);border-radius:8px;color:white;font-weight:700;font-size:0.82rem;padding:2px 6px;text-align:right;">
+                        </span>
                     </div>
                     <div id="items-list" class="ctrl-cart-items">
                         <p class="text-muted text-center small mb-0" style="padding:4px 0;">Toca productos</p>
@@ -81,9 +85,11 @@
                 </div>
 
                 <div class="ctrl-row">
-                    <div class="ctrl-group">
-                        <input type="text" name="cliente_nombre" id="ctrl-cliente" placeholder="Cliente" maxlength="100">
+                    <div class="ctrl-group" style="flex:1 1 100%;">
+                        <input type="text" name="cliente_nombre" id="ctrl-cliente" placeholder="Nombre cliente" maxlength="100">
                     </div>
+                </div>
+                <div class="ctrl-row">
                     <div class="ctrl-group">
                         <input type="text" name="notas" id="ctrl-notas" placeholder="Notas">
                     </div>
@@ -97,7 +103,6 @@
                     </div>
                 </div>
 
-                <input type="hidden" id="total_final" name="total_final" value="0">
                 <button type="submit" class="ctrl-submit" id="btn-confirmar" disabled>
                     <i class="bi bi-check-lg"></i> Confirmar
                 </button>
@@ -248,7 +253,6 @@ function renderCart() {
     if (!keys.length) {
         list.innerHTML = '<p class="text-muted text-center small mb-0" style="padding:4px 0;">Toca productos</p>';
         document.getElementById('total_final').value = 0;
-        document.getElementById('total-display').textContent = '$0';
         document.getElementById('btn-confirmar').disabled = true;
         return;
     }
@@ -266,7 +270,6 @@ function renderCart() {
         </div>`;
     });
     list.innerHTML = html;
-    document.getElementById('total-display').textContent = fmt(total);
     document.getElementById('total_final').value = total;
     document.getElementById('btn-confirmar').disabled = false;
 }
@@ -525,6 +528,13 @@ function editarProducto(e, id) {
 function toggleProducto(id) {
     fetch(BASE + '/productos/' + id + '/toggle', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'} })
     .then(r => r.json()).then(data => { if (data.success) { showToast(data.activo ? 'Activado' : 'Desactivado'); refreshProductos(); } });
+}
+
+function eliminarProducto(id, nombre) {
+    if (!confirm('Eliminar "' + nombre + '"? Las ventas existentes conservan el registro.')) return;
+    fetch(BASE + '/productos/' + id + '/eliminar', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'} })
+    .then(r => r.json()).then(data => { if (data.success) { showToast('Eliminado'); refreshProductos(); } })
+    .catch(() => showToast('Error', 'error'));
 }
 
 // ===== PROMOS =====

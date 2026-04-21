@@ -30,6 +30,10 @@
                             onclick="toggleProducto({{ p.id }})">
                         <i class="bi {{ 'bi-eye-slash' if p.activo else 'bi-eye' }}"></i>
                     </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" style="border-radius: 8px; font-size: 0.68rem;"
+                            onclick="eliminarProducto({{ p.id }}, '{{ p.nombre|e }}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
                 </div>
             </div>
         </div>
