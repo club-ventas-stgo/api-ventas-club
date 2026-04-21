@@ -287,7 +287,8 @@ def lista_partial(codigo):
         ventas_por_dia[dia]['total'] += v.total_final
         ventas_por_dia[dia]['count'] += 1
 
-    return render_template('ventas/_ventas_partial.html', stand=stand, ventas_por_dia=ventas_por_dia,
+    tpl = 'ventas/_ventas_cards.html' if request.args.get('cards') else 'ventas/_ventas_partial.html'
+    return render_template(tpl, stand=stand, ventas_por_dia=ventas_por_dia,
                            filtro_estado=filtro_estado, filtro_pago=filtro_pago)
 
 
