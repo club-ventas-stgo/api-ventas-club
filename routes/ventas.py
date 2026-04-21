@@ -421,8 +421,9 @@ def buscar(codigo):
         'cliente_nombre': v.cliente_nombre or '',
         'total_final': v.total_final,
         'estado_entrega': v.estado_entrega,
+        'estado_pago': v.estado_pago,
         'created_at': v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ).strftime('%d/%m %H:%M'),
-        'detalles': [{'nombre': d.nombre_producto, 'cantidad': d.cantidad} for d in v.detalles]
+        'detalles': [{'nombre': d.nombre_producto, 'cantidad': d.cantidad, 'precio_unitario': d.precio_unitario, 'subtotal': d.subtotal} for d in v.detalles]
     } for v in ventas]
 
     return jsonify(results)

@@ -1,40 +1,56 @@
+{% set ns = namespace(activas=[], entregados=[], completados=[]) %}
 {% if ventas_por_dia %}
     {% for dia, data in ventas_por_dia.items() %}
-    <div class="ventas-dia-divider">
-        <span class="ventas-dia-label"><i class="bi bi-calendar3"></i> {{ dia }}</span>
-        <span class="ventas-dia-stats">{{ data.count }} ventas &middot; <strong>${{ '{:,}'.format(data.total) }}</strong></span>
-    </div>
-    {% for v in data.ventas %}
-    <div class="venta-card" onclick="expandVenta({{ v.id }},this)">
-        <div class="d-flex">
-            <div class="venta-card-left-stripe st-{{ v.estado_entrega }}"></div>
-            <div class="venta-card-header flex-grow-1">
-                <div class="venta-card-order">#{{ v.numero_orden }}</div>
-                <div class="venta-card-info">
-                    <div class="venta-card-cliente">{{ v.cliente_nombre or 'Sin nombre' }} <span style="font-weight:400;color:#9ca3af;font-size:0.75rem;">{{ v.created_at|local_time('%H:%M') }}</span></div>
-                    <div class="venta-card-detalle">{% for d in v.detalles %}{{ d.cantidad }}x {{ d.nombre_producto }}{% if not loop.last %}, {% endif %}{% endfor %}</div>
-                </div>
-                <div class="venta-card-right">
-                    <div class="venta-card-total">${{ '{:,}'.format(v.total_final) }}</div>
-                    <div class="venta-card-badges">
-                        {% if v.estado_pago == 'pagado' %}<span class="venta-badge venta-badge-pago-pagado">Pagado</span>
-                        {% elif v.estado_pago == 'parcial' %}<span class="venta-badge venta-badge-pago-parcial">Parcial</span>
-                        {% else %}<span class="venta-badge venta-badge-pago-pendiente">Debe</span>{% endif %}
-                        {% if v.estado_entrega == 'entregado' %}<span class="venta-badge venta-badge-entrega-entregado"><i class="bi bi-check-lg"></i></span>
-                        {% elif v.estado_entrega == 'listo' %}<span class="venta-badge venta-badge-entrega-listo">Listo</span>
-                        {% elif v.estado_entrega == 'en_preparacion' %}<span class="venta-badge venta-badge-entrega-en_preparacion">Prep.</span>
-                        {% else %}<span class="venta-badge venta-badge-entrega-pendiente">Pend.</span>{% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="venta-expand" id="venta-expand-{{ v.id }}" style="display:none;"></div>
-    </div>
+        {% for v in data.ventas %}
+            {% if v.estado_entrega == 'entregado' and v.estado_pago == 'pagado' %}
+                {% set ns.completados = ns.completados + [v] %}
+            {% elif v.estado_entrega == 'entregado' %}
+                {% set ns.entregados = ns.entregados + [v] %}
+            {% else %}
+                {% set ns.activas = ns.activas + [v] %}
+            {% endif %}
+        {% endfor %}
     {% endfor %}
-    {% endfor %}
-{% else %}
+{% endif %}
+
+{% if ns.activas %}
+<div class="ventas-section-label"><i class="bi bi-fire"></i> Pedidos activos <span class="ventas-section-count">{{ ns.activas|length }}</span></div>
+{% for v in ns.activas %}
+{% include 'ventas/_venta_card_full.html' %}
+{% endfor %}
+{% endif %}
+
+{% if not ns.activas and not ns.entregados and not ns.completados %}
 <div class="text-center py-5">
     <i class="bi bi-receipt" style="font-size:2.5rem;color:#d1d5db;"></i>
     <p class="text-muted mt-2 mb-0">No hay ventas con ese filtro.</p>
+</div>
+{% endif %}
+
+{% if ns.entregados %}
+<div class="ventas-folder" style="margin-top:12px;">
+    <button class="ventas-folder-btn ventas-folder-entregados" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('d-none');">
+        <span><i class="bi bi-bag-check"></i> Entregados sin pagar</span>
+        <span class="d-flex align-items-center gap-2"><span class="ventas-section-count">{{ ns.entregados|length }}</span><i class="bi bi-chevron-down ventas-folder-chevron"></i></span>
+    </button>
+    <div class="d-none">
+        {% for v in ns.entregados %}
+        {% include 'ventas/_venta_card_full.html' %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if ns.completados %}
+<div class="ventas-folder" style="margin-top:8px;">
+    <button class="ventas-folder-btn ventas-folder-completados" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('d-none');">
+        <span><i class="bi bi-check-circle-fill"></i> Completados</span>
+        <span class="d-flex align-items-center gap-2"><span class="ventas-section-count">{{ ns.completados|length }}</span><i class="bi bi-chevron-down ventas-folder-chevron"></i></span>
+    </button>
+    <div class="d-none">
+        {% for v in ns.completados %}
+        {% include 'ventas/_venta_card_full.html' %}
+        {% endfor %}
+    </div>
 </div>
 {% endif %}

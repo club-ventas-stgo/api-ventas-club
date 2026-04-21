@@ -1047,7 +1047,7 @@ img {
     background-color: #e9ecef;
 }
 
-/* ===== VENTAS INLINE CARDS ===== */
+/* ===== VENTAS SEARCH BAR ===== */
 .ventas-search-bar {
     display: flex;
     gap: 6px;
@@ -1086,106 +1086,178 @@ img {
     color: #374151;
 }
 
-.venta-card {
+/* ===== SECTION LABELS & FOLDERS ===== */
+.ventas-section-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #374151;
+    padding: 6px 2px 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ventas-section-count {
+    background: #e5e7eb;
+    color: #6b7280;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+}
+
+.ventas-folder-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    background: white;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.ventas-folder-btn:hover { border-color: #d1d5db; background: #f9fafb; }
+
+.ventas-folder-chevron { transition: transform 0.2s; font-size: 0.75rem; }
+.ventas-folder-btn.open .ventas-folder-chevron { transform: rotate(180deg); }
+
+.ventas-folder-entregados { border-color: #fde68a; color: #92400e; background: #fffbeb; }
+.ventas-folder-entregados:hover { background: #fef3c7; }
+.ventas-folder-completados { border-color: #bbf7d0; color: #166534; background: #f0fdf4; }
+.ventas-folder-completados:hover { background: #dcfce7; }
+
+/* ===== VENTA CARD (vc) ===== */
+.vc {
     background: white;
     border-radius: 14px;
     box-shadow: 0 1px 6px rgba(0,0,0,0.06);
     margin-bottom: 8px;
     overflow: hidden;
-    transition: box-shadow 0.15s;
-    cursor: pointer;
 }
 
-.venta-card:hover {
-    box-shadow: 0 3px 12px rgba(0,0,0,0.1);
-}
-
-.venta-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 14px;
-    gap: 8px;
-}
-
-.venta-card-order {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: #1a1a2e;
-    min-width: 40px;
-}
-
-.venta-card-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.venta-card-cliente {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #374151;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.venta-card-detalle {
-    font-size: 0.72rem;
-    color: #9ca3af;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.venta-card-right {
-    text-align: right;
-    flex-shrink: 0;
-}
-
-.venta-card-total {
-    font-size: 1rem;
-    font-weight: 800;
-    color: #1f2937;
-}
-
-.venta-card-badges {
-    display: flex;
-    gap: 4px;
-    justify-content: flex-end;
-    margin-top: 3px;
-}
-
-.venta-badge {
-    font-size: 0.62rem;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-}
-
-.venta-badge-pago-pagado { background: #dcfce7; color: #166534; }
-.venta-badge-pago-parcial { background: #fef9c3; color: #854d0e; }
-.venta-badge-pago-pendiente { background: #fee2e2; color: #991b1b; }
-
-.venta-badge-entrega-entregado { background: #d1fae5; color: #065f46; }
-.venta-badge-entrega-listo { background: #dbeafe; color: #1e40af; }
-.venta-badge-entrega-en_preparacion { background: #ffedd5; color: #9a3412; }
-.venta-badge-entrega-pendiente { background: #f3f4f6; color: #6b7280; }
-
-.venta-card-left-stripe {
+.vc-stripe {
     width: 5px;
     flex-shrink: 0;
     align-self: stretch;
 }
 
-.venta-card-left-stripe.st-pendiente { background: #ef4444; }
-.venta-card-left-stripe.st-en_preparacion { background: #f59e0b; }
-.venta-card-left-stripe.st-listo { background: #3b82f6; }
-.venta-card-left-stripe.st-entregado { background: #22c55e; }
+.vc-stripe.st-pendiente { background: #ef4444; }
+.vc-stripe.st-en_preparacion { background: #f59e0b; }
+.vc-stripe.st-listo { background: #3b82f6; }
+.vc-stripe.st-entregado { background: #22c55e; }
 
-/* Quick-pay button on card */
-.venta-btn-cobrar {
+.vc-body {
+    flex: 1;
+    padding: 10px 12px;
+    min-width: 0;
+}
+
+.vc-top {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.vc-order {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #1a1a2e;
+}
+
+.vc-cliente {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #374151;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vc-time {
+    font-size: 0.72rem;
+    color: #9ca3af;
+}
+
+.vc-total {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #059669;
+    margin-left: auto;
+}
+
+.vc-items {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin: 3px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+}
+
+.vc-sep { color: #d1d5db; }
+
+.vc-notas {
+    font-size: 0.72rem;
+    color: #92400e;
+    background: #fffbeb;
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin: 4px 0;
+}
+
+.vc-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+.vc-estado-flow {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.vc-estado-actual {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.vc-estado-actual i { font-size: 0.5rem; }
+
+.vc-btn-next {
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1.5px solid #3b82f6;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+}
+
+.vc-btn-next:hover { background: #dbeafe; }
+
+.vc-btn-pago {
     padding: 4px 10px;
     border-radius: 8px;
     border: none;
@@ -1196,42 +1268,50 @@ img {
     cursor: pointer;
     transition: opacity 0.15s;
     white-space: nowrap;
-}
-
-.venta-btn-cobrar:hover { opacity: 0.85; }
-
-/* Day divider in ventas */
-.ventas-dia-divider {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 6px 0;
-    margin: 4px 0;
+    gap: 3px;
 }
 
-.ventas-dia-divider::before,
-.ventas-dia-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: #e5e7eb;
-}
+.vc-btn-pago:hover { opacity: 0.85; }
 
-.ventas-dia-label {
-    font-size: 0.75rem;
+.vc-pagado-badge {
+    font-size: 0.68rem;
     font-weight: 700;
-    color: #6b7280;
-    white-space: nowrap;
+    color: #166534;
+    background: #dcfce7;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
 }
 
-.ventas-dia-stats {
-    font-size: 0.72rem;
+.vc-entregado-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #065f46;
+    background: #d1fae5;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.vc-btn-edit {
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1.5px solid #e5e7eb;
+    background: white;
     color: #9ca3af;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-left: auto;
 }
 
-.ventas-dia-stats strong {
-    color: #22c55e;
-}
+.vc-btn-edit:hover { border-color: #d1d5db; color: #6b7280; }
 
 @media (max-width: 576px) {
     .ventas-search-bar {
@@ -1241,10 +1321,10 @@ img {
     }
     .ventas-search-bar input { padding: 7px 12px; font-size: 0.82rem; }
     .ventas-search-bar select { font-size: 0.72rem; padding: 7px 6px; max-width: 80px; }
-    .venta-card-header { padding: 8px 10px; }
-    .venta-card-order { font-size: 1rem; }
-    .venta-card-total { font-size: 0.92rem; }
-    .venta-card-cliente { font-size: 0.8rem; }
+    .vc-body { padding: 8px 10px; }
+    .vc-order { font-size: 0.95rem; }
+    .vc-total { font-size: 0.92rem; }
+    .vc-cliente { font-size: 0.8rem; }
 }
 
 /* ===== iOS SAFE AREAS ===== */
