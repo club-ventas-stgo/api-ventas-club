@@ -1,10 +1,10 @@
 import json
 from collections import OrderedDict
-from datetime import timezone
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from app import db
-from models import Stand, Producto, Promocion, Venta, DetalleVenta
+from models import Stand, Producto, Promocion, Venta, DetalleVenta, SesionVenta
 from routes.stand import get_stand_or_404
 
 CHILE_TZ = ZoneInfo('America/Santiago')
@@ -38,6 +38,21 @@ def get_promos_activas_dict(stand_id):
         Promocion.producto_id.isnot(None)
     ).all()
     return {p.producto_id: p for p in promos}
+
+
+def get_or_create_session(stand_id):
+    """Get or create a session for today (Chile TZ). Returns sesion_id."""
+    hoy = datetime.now(timezone.utc).astimezone(CHILE_TZ).date()
+    sesion = SesionVenta.query.filter_by(stand_id=stand_id, fecha=hoy).first()
+    if sesion:
+        if sesion.estado == 'programada':
+            sesion.estado = 'abierta'
+            db.session.flush()
+        return sesion.id
+    sesion = SesionVenta(stand_id=stand_id, fecha=hoy, estado='abierta')
+    db.session.add(sesion)
+    db.session.flush()
+    return sesion.id
 
 
 @ventas_bp.route('/<codigo>/panel')
@@ -168,6 +183,8 @@ def nueva(codigo):
             total_final = total_original
 
         sesion_id = request.form.get('sesion_id', type=int)
+        if not sesion_id:
+            sesion_id = get_or_create_session(stand.id)
 
         try:
             venta = Venta(

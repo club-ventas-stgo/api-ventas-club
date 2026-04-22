@@ -20,6 +20,14 @@ MESES = {
 }
 
 
+def chile_day_range(fecha):
+    """Convierte un date (dia Chile) a rango UTC (start, end) para queries."""
+    start_local = datetime(fecha.year, fecha.month, fecha.day, tzinfo=CHILE_TZ)
+    end_local = start_local + timedelta(days=1)
+    return (start_local.astimezone(timezone.utc).replace(tzinfo=None),
+            end_local.astimezone(timezone.utc).replace(tzinfo=None))
+
+
 def parsear_fecha(fecha_str):
     """Parsea 'YYYY-MM-DD' y retorna date, o None si es invalido."""
     try:
@@ -42,9 +50,8 @@ def obtener_resumen_dia(stand, fecha_str):
     if not fecha:
         return None
 
-    # Rango de timestamps para el dia (compatible con SQLite y PostgreSQL)
-    fecha_inicio = datetime(fecha.year, fecha.month, fecha.day)
-    fecha_fin = fecha_inicio + timedelta(days=1)
+    # Rango UTC para el dia Chile (compatible con SQLite y PostgreSQL)
+    fecha_inicio, fecha_fin = chile_day_range(fecha)
 
     ventas = Venta.query.filter(
         Venta.stand_id == stand.id,
@@ -215,10 +222,11 @@ def exportar_todo_excel(codigo):
     ws['A1'].alignment = center_align
     ws.row_dimensions[1].height = 30
 
-    # Agrupar por dia
+    # Agrupar por dia (Chile TZ)
     ventas_por_dia = OrderedDict()
     for v in ventas:
-        dia = v.created_at.strftime('%Y-%m-%d')
+        local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
+        dia = local_dt.strftime('%Y-%m-%d')
         if dia not in ventas_por_dia:
             ventas_por_dia[dia] = []
         ventas_por_dia[dia].append(v)
@@ -249,9 +257,10 @@ def exportar_todo_excel(codigo):
         row += 1
 
         for venta in ventas_dia:
+            hora_chile = venta.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ).strftime('%H:%M')
             for j, detalle in enumerate(venta.detalles):
                 ws.cell(row=row, column=1, value=venta.numero_orden if j == 0 else '').alignment = center_align
-                ws.cell(row=row, column=2, value=venta.created_at.strftime('%H:%M') if j == 0 else '').alignment = center_align
+                ws.cell(row=row, column=2, value=hora_chile if j == 0 else '').alignment = center_align
                 ws.cell(row=row, column=3, value=(venta.cliente_nombre or 'S/N') if j == 0 else '').alignment = left_align
                 ws.cell(row=row, column=4, value=detalle.nombre_producto).alignment = left_align
                 ws.cell(row=row, column=5, value=detalle.cantidad).alignment = center_align
@@ -415,9 +424,10 @@ def exportar_dia_excel(codigo, fecha):
     row += 1
 
     for venta in resumen['ventas']:
+        hora_chile = venta.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ).strftime('%H:%M')
         for j, detalle in enumerate(venta.detalles):
             ws.cell(row=row, column=1, value=venta.numero_orden if j == 0 else '').alignment = center_align
-            ws.cell(row=row, column=2, value=venta.created_at.strftime('%H:%M') if j == 0 else '').alignment = center_align
+            ws.cell(row=row, column=2, value=hora_chile if j == 0 else '').alignment = center_align
             ws.cell(row=row, column=3, value=(venta.cliente_nombre or 'S/N') if j == 0 else '').alignment = left_align
             ws.cell(row=row, column=4, value=detalle.nombre_producto).alignment = left_align
             ws.cell(row=row, column=5, value=detalle.cantidad).alignment = center_align
@@ -546,8 +556,7 @@ def vincular_sesion(codigo, fecha):
         return redirect(url_for('registros.detalle_dia', codigo=codigo, fecha=fecha))
 
     # Update all sales of this day to link to the session
-    fecha_inicio = datetime(fecha_date.year, fecha_date.month, fecha_date.day)
-    fecha_fin = fecha_inicio + timedelta(days=1)
+    fecha_inicio, fecha_fin = chile_day_range(fecha_date)
 
     ventas = Venta.query.filter(
         Venta.stand_id == stand.id,
