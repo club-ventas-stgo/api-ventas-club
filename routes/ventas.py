@@ -17,6 +17,29 @@ def siguiente_numero_orden(stand_id):
     return (ultima.numero_orden + 1) if ultima else 1
 
 
+def calcular_subtotal_con_promo(producto_id, cantidad, precio_unitario, promos_activas):
+    """Calculate subtotal applying promotions if applicable.
+    promos_activas: dict {producto_id: Promocion}
+    Returns (subtotal, promo_id, promo_texto)
+    """
+    promo = promos_activas.get(producto_id)
+    if promo and promo.cantidad and promo.precio_promocion and cantidad >= promo.cantidad:
+        batches = cantidad // promo.cantidad
+        remainder = cantidad % promo.cantidad
+        subtotal = batches * promo.precio_promocion + remainder * precio_unitario
+        texto = f"{promo.cantidad}x${promo.precio_promocion:,}"
+        return subtotal, promo.id, texto
+    return cantidad * precio_unitario, None, None
+
+
+def get_promos_activas_dict(stand_id):
+    """Get active promos indexed by producto_id."""
+    promos = Promocion.query.filter_by(stand_id=stand_id, activa=True).filter(
+        Promocion.producto_id.isnot(None)
+    ).all()
+    return {p.producto_id: p for p in promos}
+
+
 @ventas_bp.route('/<codigo>/panel')
 def panel(codigo):
     stand = get_stand_or_404(codigo)
@@ -101,6 +124,7 @@ def nueva(codigo):
             flash('Debe agregar al menos un producto.', 'danger')
             return redirect(url_for('ventas.nueva', codigo=codigo))
 
+        promos_activas = get_promos_activas_dict(stand.id)
         detalles = []
         total_original = 0
 
@@ -117,7 +141,9 @@ def nueva(codigo):
                 precio_unitario = int(item.get('precio', producto.precio))
             except (ValueError, TypeError):
                 precio_unitario = producto.precio
-            subtotal = precio_unitario * cantidad
+
+            subtotal, promo_id, promo_texto = calcular_subtotal_con_promo(
+                producto.id, cantidad, precio_unitario, promos_activas)
             total_original += subtotal
 
             detalles.append(DetalleVenta(
@@ -125,7 +151,9 @@ def nueva(codigo):
                 nombre_producto=producto.nombre,
                 cantidad=cantidad,
                 precio_unitario=precio_unitario,
-                subtotal=subtotal
+                subtotal=subtotal,
+                promocion_id=promo_id,
+                promocion_texto=promo_texto
             ))
 
         if not detalles:
@@ -178,8 +206,11 @@ def nueva(codigo):
 
     productos = stand.productos.filter_by(activo=True).order_by(Producto.nombre).all()
     promociones = stand.promociones.filter_by(activa=True).all()
+    promos_json = {p.producto_id: {'cantidad': p.cantidad, 'precio_promocion': p.precio_promocion, 'nombre': p.nombre}
+                   for p in promociones if p.producto_id and p.cantidad and p.precio_promocion}
     sesion_id = request.args.get('sesion_id', type=int)
-    return render_template('ventas/nueva.html', stand=stand, productos=productos, promociones=promociones, sesion_id=sesion_id)
+    return render_template('ventas/nueva.html', stand=stand, productos=productos, promociones=promociones,
+                           promos_json=promos_json, sesion_id=sesion_id)
 
 
 @ventas_bp.route('/<codigo>/ventas/<int:venta_id>', methods=['GET', 'POST'])
@@ -320,6 +351,7 @@ def editar_venta(codigo, venta_id):
             return redirect(url_for('ventas.editar_venta', codigo=codigo, venta_id=venta_id))
 
         # Validate new items BEFORE deleting old ones
+        promos_activas = get_promos_activas_dict(stand.id)
         detalles = []
         total_original = 0
         for item in items:
@@ -334,7 +366,9 @@ def editar_venta(codigo, venta_id):
                 precio_unitario = int(item.get('precio', producto.precio))
             except (ValueError, TypeError):
                 precio_unitario = producto.precio
-            subtotal = precio_unitario * cantidad
+
+            subtotal, promo_id, promo_texto = calcular_subtotal_con_promo(
+                producto.id, cantidad, precio_unitario, promos_activas)
             total_original += subtotal
             detalles.append(DetalleVenta(
                 venta_id=venta.id,
@@ -342,7 +376,9 @@ def editar_venta(codigo, venta_id):
                 nombre_producto=producto.nombre,
                 cantidad=cantidad,
                 precio_unitario=precio_unitario,
-                subtotal=subtotal
+                subtotal=subtotal,
+                promocion_id=promo_id,
+                promocion_texto=promo_texto
             ))
 
         if not detalles:
@@ -381,7 +417,10 @@ def editar_venta(codigo, venta_id):
         return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
 
     productos = stand.productos.filter_by(activo=True).order_by(Producto.nombre).all()
-    return render_template('ventas/editar.html', stand=stand, venta=venta, productos=productos)
+    promociones = stand.promociones.filter_by(activa=True).all()
+    promos_json = {p.producto_id: {'cantidad': p.cantidad, 'precio_promocion': p.precio_promocion, 'nombre': p.nombre}
+                   for p in promociones if p.producto_id and p.cantidad and p.precio_promocion}
+    return render_template('ventas/editar.html', stand=stand, venta=venta, productos=productos, promos_json=promos_json)
 
 
 @ventas_bp.route('/<codigo>/stock')
@@ -423,7 +462,7 @@ def buscar(codigo):
         'estado_entrega': v.estado_entrega,
         'estado_pago': v.estado_pago,
         'created_at': v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ).strftime('%d/%m %H:%M'),
-        'detalles': [{'nombre': d.nombre_producto, 'cantidad': d.cantidad, 'precio_unitario': d.precio_unitario, 'subtotal': d.subtotal} for d in v.detalles]
+        'detalles': [{'nombre': d.nombre_producto, 'cantidad': d.cantidad, 'precio_unitario': d.precio_unitario, 'subtotal': d.subtotal, 'promocion_texto': d.promocion_texto} for d in v.detalles]
     } for v in ventas]
 
     return jsonify(results)
@@ -505,10 +544,13 @@ def control(codigo):
         ventas_por_dia[dia]['total'] += v.total_final
         ventas_por_dia[dia]['count'] += 1
 
+    promos_json = {p.producto_id: {'cantidad': p.cantidad, 'precio_promocion': p.precio_promocion, 'nombre': p.nombre}
+                   for p in promociones_activas if p.producto_id and p.cantidad and p.precio_promocion}
+
     return render_template('ventas/control.html', stand=stand,
                            productos=productos, productos_activos=productos_activos,
                            promociones=promociones, promociones_activas=promociones_activas,
-                           ventas_por_dia=ventas_por_dia)
+                           promos_json=promos_json, ventas_por_dia=ventas_por_dia)
 
 
 @ventas_bp.route('/<codigo>/ventas/<int:venta_id>/json')
@@ -533,6 +575,7 @@ def venta_json(codigo, venta_id):
             'nombre_producto': d.nombre_producto,
             'cantidad': d.cantidad,
             'precio_unitario': d.precio_unitario,
-            'subtotal': d.subtotal
+            'subtotal': d.subtotal,
+            'promocion_texto': d.promocion_texto
         } for d in venta.detalles]
     })

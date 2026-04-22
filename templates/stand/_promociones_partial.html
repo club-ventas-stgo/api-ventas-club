@@ -8,7 +8,9 @@
                     {% if not promo.activa %}
                     <span class="badge bg-danger" style="font-size: 0.6rem;">Off</span>
                     {% endif %}
-                    {% if promo.descripcion %}
+                    {% if promo.producto and promo.cantidad and promo.precio_promocion %}
+                    <br><small class="text-success fw-semibold">{{ promo.producto.nombre }} — ${{ '{:,}'.format(promo.producto.precio) }} c/u → {{ promo.cantidad }} x ${{ '{:,}'.format(promo.precio_promocion) }}</small>
+                    {% elif promo.descripcion %}
                     <br><small class="text-muted">{{ promo.descripcion }}</small>
                     {% endif %}
                 </div>

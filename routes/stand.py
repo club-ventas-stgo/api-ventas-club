@@ -207,29 +207,61 @@ def eliminar_producto(codigo, producto_id):
 @stand_bp.route('/<codigo>/promociones', methods=['GET', 'POST'])
 def promociones(codigo):
     stand = get_stand_or_404(codigo)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     if request.method == 'POST':
-        nombre = request.form.get('nombre', '').strip()
-        descripcion = request.form.get('descripcion', '').strip()
+        producto_id = request.form.get('producto_id', type=int)
+        cantidad = request.form.get('cantidad', type=int)
+        precio_promocion = request.form.get('precio_promocion', type=int)
 
-        if not nombre:
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'success': False, 'error': 'El nombre es obligatorio.'}), 400
-            flash('El nombre de la promoción es obligatorio.', 'danger')
+        if not producto_id or not cantidad or precio_promocion is None:
+            msg = 'Debe seleccionar producto, cantidad y precio.'
+            if is_ajax:
+                return jsonify({'success': False, 'error': msg}), 400
+            flash(msg, 'danger')
             return redirect(url_for('stand.promociones', codigo=codigo))
 
-        promo = Promocion(stand_id=stand.id, nombre=nombre, descripcion=descripcion)
+        producto = Producto.query.filter_by(id=producto_id, stand_id=stand.id, activo=True).first()
+        if not producto:
+            msg = 'Producto no encontrado.'
+            if is_ajax:
+                return jsonify({'success': False, 'error': msg}), 400
+            flash(msg, 'danger')
+            return redirect(url_for('stand.promociones', codigo=codigo))
+
+        if cantidad < 2:
+            msg = 'La cantidad debe ser al menos 2.'
+            if is_ajax:
+                return jsonify({'success': False, 'error': msg}), 400
+            flash(msg, 'danger')
+            return redirect(url_for('stand.promociones', codigo=codigo))
+
+        # Check no duplicate active promo for same product
+        existente = Promocion.query.filter_by(stand_id=stand.id, producto_id=producto_id, activa=True).first()
+        if existente:
+            msg = f'Ya existe una promo activa para "{producto.nombre}".'
+            if is_ajax:
+                return jsonify({'success': False, 'error': msg}), 400
+            flash(msg, 'warning')
+            return redirect(url_for('stand.promociones', codigo=codigo))
+
+        nombre = f"{cantidad} {producto.nombre} x ${precio_promocion:,}"
+        descripcion = request.form.get('descripcion', '').strip()
+
+        promo = Promocion(stand_id=stand.id, nombre=nombre, descripcion=descripcion,
+                          producto_id=producto_id, cantidad=cantidad, precio_promocion=precio_promocion)
         db.session.add(promo)
         db.session.commit()
 
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if is_ajax:
             return jsonify({'success': True, 'id': promo.id, 'nombre': promo.nombre})
 
         flash(f'Promoción "{nombre}" creada.', 'success')
         return redirect(url_for('stand.promociones', codigo=codigo))
 
     todas = stand.promociones.order_by(Promocion.activa.desc(), Promocion.created_at.desc()).all()
-    return render_template('stand/promociones.html', stand=stand, promociones=todas)
+    productos_activos = stand.productos.filter_by(activo=True).order_by(Producto.nombre).all()
+    return render_template('stand/promociones.html', stand=stand, promociones=todas, productos=productos_activos)
 
 
 @stand_bp.route('/<codigo>/promociones/<int:promo_id>/toggle', methods=['POST'])
@@ -274,7 +306,8 @@ def promociones_partial(codigo):
     """Return partial HTML for promotions list (AJAX refresh)."""
     stand = get_stand_or_404(codigo)
     todas = stand.promociones.order_by(Promocion.activa.desc(), Promocion.created_at.desc()).all()
-    return render_template('stand/_promociones_partial.html', stand=stand, promociones=todas)
+    productos_activos = stand.productos.filter_by(activo=True).order_by(Producto.nombre).all()
+    return render_template('stand/_promociones_partial.html', stand=stand, promociones=todas, productos=productos_activos)
 
 
 @stand_bp.route('/<codigo>/integrantes', methods=['GET', 'POST'])

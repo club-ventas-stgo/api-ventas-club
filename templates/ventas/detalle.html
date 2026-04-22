@@ -28,7 +28,12 @@
                     {% for d in venta.detalles %}
                     <tr>
                         <td class="fw-bold" style="width: 30px;">{{ d.cantidad }}x</td>
-                        <td>{{ d.nombre_producto }}</td>
+                        <td>
+                            {{ d.nombre_producto }}
+                            {% if d.promocion_texto %}
+                            <span class="badge bg-warning text-dark" style="font-size: 0.6rem;"><i class="bi bi-tag-fill"></i> {{ d.promocion_texto }}</span>
+                            {% endif %}
+                        </td>
                         <td class="text-end text-muted">${{ '{:,}'.format(d.precio_unitario) }}</td>
                         <td class="text-end fw-bold">${{ '{:,}'.format(d.subtotal) }}</td>
                     </tr>

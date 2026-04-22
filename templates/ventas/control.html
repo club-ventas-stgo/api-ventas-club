@@ -59,6 +59,9 @@
                         {% if p.stock_disponible is not none and p.stock_disponible <= 10 %}
                         <span class="badge {{ 'bg-warning text-dark' if p.stock_disponible > 0 else 'bg-danger' }}" style="font-size:0.45rem;padding:1px 3px;border-radius:3px;position:absolute;top:1px;left:1px;">{{ p.stock_disponible }}</span>
                         {% endif %}
+                        {% if p.id in promos_json %}
+                        <span class="badge bg-warning text-dark" style="font-size:0.4rem;padding:1px 3px;border-radius:3px;position:absolute;top:1px;right:1px;"><i class="bi bi-tag-fill"></i></span>
+                        {% endif %}
                         <span class="badge bg-danger rounded-pill ctrl-badge-qty d-none" id="badge-{{ p.id }}">0</span>
                     </button>
                     {% endfor %}
@@ -180,8 +183,26 @@
                     </div>
                     <div class="modal-body">
                         <div class="mb-2">
-                            <label class="form-label small fw-semibold">Nombre</label>
-                            <input type="text" class="form-control" name="nombre" required maxlength="150" placeholder='Ej: 4 empanadas x $1800' style="border-radius: 12px;">
+                            <label class="form-label small fw-semibold">Producto</label>
+                            <select class="form-select" name="producto_id" required style="border-radius: 12px;" id="ctrl-promo-producto">
+                                <option value="">Seleccionar producto...</option>
+                                {% for p in productos_activos %}
+                                <option value="{{ p.id }}" data-precio="{{ p.precio }}">{{ p.nombre }} — ${{ '{:,}'.format(p.precio) }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold">Cantidad</label>
+                                <input type="number" class="form-control" name="cantidad" required min="2" placeholder="Ej: 4" style="border-radius: 12px;" id="ctrl-promo-qty">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold">Precio promo ($)</label>
+                                <input type="number" class="form-control" name="precio_promocion" required min="0" placeholder="Ej: 1500" style="border-radius: 12px;" id="ctrl-promo-precio">
+                            </div>
+                        </div>
+                        <div id="ctrl-promo-preview" style="display:none; background: #e8f5e9; padding: 0.5rem 0.75rem; border-radius: 10px; font-size: 0.85rem;" class="mb-2">
+                            <i class="bi bi-tag-fill text-success"></i> <span id="ctrl-promo-preview-text"></span>
                         </div>
                         <div>
                             <label class="form-label small fw-semibold">Descripcion (opcional)</label>
@@ -209,6 +230,18 @@ const PRODUCTOS_DATA = {
     {{ p.id }}: {id: {{ p.id }}, nombre: '{{ p.nombre|e }}', precio: {{ p.precio }}, foto: {% if p.foto %}'{{ p.foto[:60] }}...'{% else %}null{% endif %}, stock: {{ p.stock_disponible if p.stock_disponible is not none else 'null' }}},
 {% endfor %}
 };
+
+const promos = {{ promos_json|tojson }};
+
+function calcSub(id, item) {
+    const promo = promos[id];
+    if (promo && item.cantidad >= promo.cantidad) {
+        const batches = Math.floor(item.cantidad / promo.cantidad);
+        const remainder = item.cantidad % promo.cantidad;
+        return batches * promo.precio_promocion + remainder * item.precio;
+    }
+    return item.precio * item.cantidad;
+}
 
 // ===== TABS =====
 function switchTab(tab) {
@@ -259,13 +292,14 @@ function renderCart() {
 
     let html = '', total = 0;
     keys.forEach(id => {
-        const it = items[id], sub = it.precio * it.cantidad;
+        const it = items[id], sub = calcSub(id, it);
+        const hasPromo = promos[id] && it.cantidad >= promos[id].cantidad;
         total += sub;
         html += `<div class="d-flex align-items-center gap-1 py-1" style="font-size:0.78rem; border-bottom:1px solid #f0f0f0;">
             <button type="button" class="btn btn-outline-danger d-flex align-items-center justify-content-center" onclick="cambiar(${id},-1)" style="width:22px;height:22px;padding:0;border-radius:50%;font-size:0.7rem;flex-shrink:0;">-</button>
             <span class="fw-bold" style="min-width:14px;text-align:center;">${it.cantidad}</span>
             <button type="button" class="btn btn-outline-success d-flex align-items-center justify-content-center" onclick="cambiar(${id},1)" style="width:22px;height:22px;padding:0;border-radius:50%;font-size:0.7rem;flex-shrink:0;">+</button>
-            <span class="flex-grow-1 text-truncate ms-1">${it.nombre}</span>
+            <span class="flex-grow-1 text-truncate ms-1">${it.nombre}${hasPromo ? ' <span class="badge bg-warning text-dark" style="font-size:0.5rem;"><i class="bi bi-tag-fill"></i></span>' : ''}</span>
             <span class="text-muted flex-shrink-0">${fmt(sub)}</span>
         </div>`;
     });
@@ -317,7 +351,7 @@ function refreshVentas() {
 }
 
 function renderVentaCardJS(v) {
-    const det = v.detalles.map(d => `<span>${d.cantidad}x ${d.nombre || d.nombre_producto}</span>`).join('<span class="vc-sep">&middot;</span>');
+    const det = v.detalles.map(d => `<span>${d.cantidad}x ${d.nombre || d.nombre_producto}${d.promocion_texto ? ' <span class="badge bg-warning text-dark" style="font-size:0.5rem;"><i class="bi bi-tag-fill"></i> ' + d.promocion_texto + '</span>' : ''}</span>`).join('<span class="vc-sep">&middot;</span>');
     const estados = ['pendiente','listo','entregado'];
     const labels = {'pendiente':'Pend.','listo':'Listo','entregado':'Entregado'};
     const ci = estados.indexOf(v.estado_entrega);
@@ -451,7 +485,7 @@ function renderEditor(ventaId, clienteNombre) {
     const esc = (s) => (s||'').replace(/'/g, "\\'");
 
     let itemsHtml = keys.map(id => {
-        const it = editItems[id], sub = it.precio * it.cantidad;
+        const it = editItems[id], sub = calcSub(id, it);
         total += sub;
         return `<div class="d-flex align-items-center gap-1 py-1" style="font-size:0.75rem;border-bottom:1px solid #ffe0b2;">
             <button type="button" class="btn btn-outline-danger d-flex align-items-center justify-content-center" onclick="editCambiar('${id}',-1,${ventaId},'${esc(clienteNombre)}')" style="width:20px;height:20px;padding:0;border-radius:50%;font-size:0.65rem;">-</button>
@@ -647,6 +681,36 @@ function updateSidebarCounts() {
     if (el('count-entregados')) el('count-entregados').textContent = entregados;
     if (el('count-pagados')) el('count-pagados').textContent = pagados;
 }
+
+// ===== PROMO PREVIEW =====
+(function() {
+    const sel = document.getElementById('ctrl-promo-producto');
+    const qty = document.getElementById('ctrl-promo-qty');
+    const precio = document.getElementById('ctrl-promo-precio');
+    const preview = document.getElementById('ctrl-promo-preview');
+    const previewText = document.getElementById('ctrl-promo-preview-text');
+    if (!sel || !qty || !precio) return;
+
+    function updatePreview() {
+        const opt = sel.options[sel.selectedIndex];
+        const q = parseInt(qty.value) || 0;
+        const p = parseInt(precio.value) || 0;
+        if (opt && opt.value && q >= 2 && p >= 0) {
+            const precioUnit = parseInt(opt.dataset.precio) || 0;
+            const normal = precioUnit * q;
+            const ahorro = normal - p;
+            previewText.innerHTML = `<strong>${q} ${opt.text.split(' —')[0]} x $${p.toLocaleString('es-CL')}</strong>` +
+                (ahorro > 0 ? ` <span class="text-success">(ahorro $${ahorro.toLocaleString('es-CL')})</span>` : '');
+            preview.style.display = '';
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+
+    sel.addEventListener('change', updatePreview);
+    qty.addEventListener('input', updatePreview);
+    precio.addEventListener('input', updatePreview);
+})();
 
 // Init counts on load
 document.addEventListener('DOMContentLoaded', updateSidebarCounts);

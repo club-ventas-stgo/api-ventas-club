@@ -54,8 +54,13 @@ class Promocion(db.Model):
     stand_id = db.Column(db.Integer, db.ForeignKey('stands.id'), nullable=False)
     nombre = db.Column(db.String(150), nullable=False)
     descripcion = db.Column(db.Text)
+    producto_id = db.Column(db.Integer, db.ForeignKey('productos.id', ondelete='CASCADE'), nullable=True)
+    cantidad = db.Column(db.Integer, nullable=True)
+    precio_promocion = db.Column(db.Integer, nullable=True)
     activa = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    producto = db.relationship('Producto', lazy='select')
 
 
 class Venta(db.Model):
@@ -88,6 +93,8 @@ class DetalleVenta(db.Model):
     cantidad = db.Column(db.Integer, nullable=False)
     precio_unitario = db.Column(db.Integer, nullable=False)
     subtotal = db.Column(db.Integer, nullable=False)
+    promocion_id = db.Column(db.Integer, db.ForeignKey('promociones.id', ondelete='SET NULL'), nullable=True)
+    promocion_texto = db.Column(db.String(150), nullable=True)
 
     producto = db.relationship('Producto', lazy='select')
 

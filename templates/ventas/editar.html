@@ -46,6 +46,11 @@
                         Stock: {{ p.stock_disponible }}
                     </span>
                     {% endif %}
+                    {% if p.id in promos_json %}
+                    <span class="badge bg-warning text-dark" style="font-size: 0.55rem; border-radius: 6px; margin-top: 1px;">
+                        <i class="bi bi-tag-fill"></i> Promo
+                    </span>
+                    {% endif %}
                     <span class="badge bg-danger rounded-pill badge-qty d-none" id="badge-{{ p.id }}">0</span>
                 </button>
             </div>
@@ -84,6 +89,7 @@
 {% block scripts %}
 <script>
 const items = {};
+const promos = {{ promos_json|tojson }};
 
 // Load existing items
 {% for d in venta.detalles %}
@@ -96,6 +102,16 @@ items[{{ d.producto_id }}] = {
 {% endfor %}
 
 function fmt(n) { return '$' + n.toLocaleString('es-CL'); }
+
+function calcSub(id, item) {
+    const promo = promos[id];
+    if (promo && item.cantidad >= promo.cantidad) {
+        const batches = Math.floor(item.cantidad / promo.cantidad);
+        const remainder = item.cantidad % promo.cantidad;
+        return batches * promo.precio_promocion + remainder * item.precio;
+    }
+    return item.precio * item.cantidad;
+}
 
 function render() {
     const list = document.getElementById('items-list');
@@ -115,18 +131,22 @@ function render() {
 
     let html = '', total = 0, totalUnidades = 0;
     keys.forEach(id => {
-        const item = items[id], sub = item.precio * item.cantidad;
+        const item = items[id];
+        const sub = calcSub(id, item);
+        const hasPromo = promos[id] && item.cantidad >= promos[id].cantidad;
         total += sub;
         totalUnidades += item.cantidad;
         html += `
         <div class="d-flex align-items-center justify-content-between py-1 border-bottom">
             <div class="flex-grow-1 me-2">
                 <strong style="font-size:0.82rem;">${item.nombre}</strong>
+                ${hasPromo ? '<span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;"><i class="bi bi-tag-fill"></i> Promo</span>' : ''}
                 <div class="d-flex align-items-center gap-1 mt-1">
                     <span class="text-muted" style="font-size:0.7rem;">$</span>
                     <input type="number" class="form-control form-control-sm" value="${item.precio}" min="0"
                            onchange="cambiarPrecio(${id}, this.value)" style="width:70px; height:24px; font-size:0.75rem; padding:0 4px; border-radius:6px;">
                     <span class="text-muted" style="font-size:0.72rem;">x${item.cantidad} = ${fmt(sub)}</span>
+                    ${hasPromo ? '<span class="text-decoration-line-through text-muted" style="font-size:0.65rem;">' + fmt(item.precio * item.cantidad) + '</span>' : ''}
                 </div>
             </div>
             <div class="d-flex align-items-center gap-1 flex-shrink-0">

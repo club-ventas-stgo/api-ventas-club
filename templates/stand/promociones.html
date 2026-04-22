@@ -22,7 +22,9 @@
                     {% if not promo.activa %}
                     <span class="badge bg-danger" style="font-size: 0.6rem;">Off</span>
                     {% endif %}
-                    {% if promo.descripcion %}
+                    {% if promo.producto and promo.cantidad and promo.precio_promocion %}
+                    <br><small class="text-success fw-semibold">{{ promo.producto.nombre }} — ${{ '{:,}'.format(promo.producto.precio) }} c/u → {{ promo.cantidad }} x ${{ '{:,}'.format(promo.precio_promocion) }}</small>
+                    {% elif promo.descripcion %}
                     <br><small class="text-muted">{{ promo.descripcion }}</small>
                     {% endif %}
                 </div>
@@ -65,8 +67,26 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-2">
-                        <label class="form-label small fw-semibold">Nombre</label>
-                        <input type="text" class="form-control" name="nombre" required maxlength="150" placeholder='Ej: 4 empanadas x $1800' style="border-radius: 12px;">
+                        <label class="form-label small fw-semibold">Producto</label>
+                        <select class="form-select" name="producto_id" required style="border-radius: 12px;">
+                            <option value="">Seleccionar producto...</option>
+                            {% for p in productos %}
+                            <option value="{{ p.id }}" data-precio="{{ p.precio }}">{{ p.nombre }} — ${{ '{:,}'.format(p.precio) }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Cantidad</label>
+                            <input type="number" class="form-control" name="cantidad" required min="2" placeholder="Ej: 4" style="border-radius: 12px;">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Precio promo ($)</label>
+                            <input type="number" class="form-control" name="precio_promocion" required min="0" placeholder="Ej: 1500" style="border-radius: 12px;">
+                        </div>
+                    </div>
+                    <div id="promo-preview" style="display:none; background: #e8f5e9; padding: 0.5rem 0.75rem; border-radius: 10px; font-size: 0.85rem;" class="mb-2">
+                        <i class="bi bi-tag-fill text-success"></i> <span id="promo-preview-text"></span>
                     </div>
                     <div>
                         <label class="form-label small fw-semibold">Descripcion (opcional)</label>
@@ -82,4 +102,36 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const sel = document.querySelector('#modal-promo select[name="producto_id"]');
+    const qty = document.querySelector('#modal-promo input[name="cantidad"]');
+    const precio = document.querySelector('#modal-promo input[name="precio_promocion"]');
+    const preview = document.getElementById('promo-preview');
+    const previewText = document.getElementById('promo-preview-text');
+
+    function updatePreview() {
+        const opt = sel.options[sel.selectedIndex];
+        const q = parseInt(qty.value) || 0;
+        const p = parseInt(precio.value) || 0;
+        if (opt && opt.value && q >= 2 && p >= 0) {
+            const precioUnit = parseInt(opt.dataset.precio) || 0;
+            const normal = precioUnit * q;
+            const ahorro = normal - p;
+            previewText.innerHTML = `<strong>${q} ${opt.text.split(' —')[0]} x $${p.toLocaleString('es-CL')}</strong>` +
+                (ahorro > 0 ? ` <span class="text-success">(ahorro $${ahorro.toLocaleString('es-CL')})</span>` : '');
+            preview.style.display = '';
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+
+    sel.addEventListener('change', updatePreview);
+    qty.addEventListener('input', updatePreview);
+    precio.addEventListener('input', updatePreview);
+})();
+</script>
 {% endblock %}

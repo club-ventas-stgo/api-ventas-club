@@ -58,7 +58,7 @@
                                     <span class="vc-time">{{ v.created_at|local_time('%H:%M') }}</span>
                                     <span class="vc-total">${{ '{:,}'.format(v.total_final) }}</span>
                                 </div>
-                                <div class="vc-items">{% for d in v.detalles %}<span>{{ d.cantidad }}x {{ d.nombre_producto }}</span>{% if not loop.last %}<span class="vc-sep">&middot;</span>{% endif %}{% endfor %}</div>
+                                <div class="vc-items">{% for d in v.detalles %}<span>{{ d.cantidad }}x {{ d.nombre_producto }}{% if d.promocion_texto %} <span class="badge bg-warning text-dark" style="font-size:0.5rem;"><i class="bi bi-tag-fill"></i> {{ d.promocion_texto }}</span>{% endif %}</span>{% if not loop.last %}<span class="vc-sep">&middot;</span>{% endif %}{% endfor %}</div>
                                 {% if v.notas %}<div class="vc-notas"><i class="bi bi-chat-left-text"></i> {{ v.notas }}</div>{% endif %}
                                 <div class="vc-actions">
                                     {% if v.estado_entrega != 'entregado' %}
