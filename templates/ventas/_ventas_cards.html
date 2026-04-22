@@ -1,56 +1,51 @@
-{% set ns = namespace(activas=[], entregados=[], completados=[]) %}
 {% if ventas_por_dia %}
     {% for dia, data in ventas_por_dia.items() %}
         {% for v in data.ventas %}
-            {% if v.estado_entrega == 'entregado' and v.estado_pago == 'pagado' %}
-                {% set ns.completados = ns.completados + [v] %}
-            {% elif v.estado_entrega == 'entregado' %}
-                {% set ns.entregados = ns.entregados + [v] %}
-            {% else %}
-                {% set ns.activas = ns.activas + [v] %}
-            {% endif %}
+        <div class="vc vc-{{ v.estado_entrega }}" id="vc-{{ v.id }}" data-estado="{{ v.estado_entrega }}" data-pago="{{ v.estado_pago }}">
+            <div class="d-flex">
+                <div class="vc-stripe st-{{ v.estado_entrega }}"></div>
+                <div class="vc-body">
+                    <div class="vc-top">
+                        <span class="vc-order">#{{ v.numero_orden }}</span>
+                        <span class="vc-cliente">{{ v.cliente_nombre or 'Sin nombre' }}</span>
+                        <span class="vc-time">{{ v.created_at|local_time('%H:%M') }}</span>
+                        <span class="vc-total">${{ '{:,}'.format(v.total_final) }}</span>
+                    </div>
+                    <div class="vc-items">{% for d in v.detalles %}<span>{{ d.cantidad }}x {{ d.nombre_producto }}</span>{% if not loop.last %}<span class="vc-sep">&middot;</span>{% endif %}{% endfor %}</div>
+                    {% if v.notas %}<div class="vc-notas"><i class="bi bi-chat-left-text"></i> {{ v.notas }}</div>{% endif %}
+                    <div class="vc-actions">
+                        {% if v.estado_entrega != 'entregado' %}
+                        <div class="vc-estado-flow">
+                            {% set estados = ['pendiente','listo','entregado'] %}
+                            {% set labels = {'pendiente':'Pend.','listo':'Listo','entregado':'Entregado'} %}
+                            {% for e in estados %}
+                                {% if estados.index(e) < estados.index(v.estado_entrega) %}
+                                {% elif e == v.estado_entrega %}
+                                <span class="vc-estado-actual"><i class="bi bi-circle-fill"></i> {{ labels[e] }}</span>
+                                {% elif estados.index(e) == estados.index(v.estado_entrega) + 1 %}
+                                <button class="vc-btn-next" onclick="cambiarEstadoVenta({{ v.id }},'{{ e }}')"><i class="bi bi-arrow-right"></i> {{ labels[e] }}</button>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <span class="vc-entregado-badge"><i class="bi bi-check-circle-fill"></i> Entregado</span>
+                        {% endif %}
+                        {% if v.estado_pago == 'pagado' %}
+                        <span class="vc-pagado-badge"><i class="bi bi-check-lg"></i> Pagado</span>
+                        {% else %}
+                        <button class="vc-btn-pago" onclick="marcarPagado({{ v.id }})"><i class="bi bi-cash-coin"></i> Pagado ${{ '{:,}'.format(v.total_final) }}</button>
+                        {% endif %}
+                        <button class="vc-btn-edit" onclick="abrirEditorInline({{ v.id }})"><i class="bi bi-pencil"></i></button>
+                    </div>
+                    <div id="editor-inline-{{ v.id }}" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
         {% endfor %}
     {% endfor %}
-{% endif %}
-
-{% if ns.activas %}
-<div class="ventas-section-label"><i class="bi bi-fire"></i> Pedidos activos <span class="ventas-section-count">{{ ns.activas|length }}</span></div>
-{% for v in ns.activas %}
-{% include 'ventas/_venta_card_full.html' %}
-{% endfor %}
-{% endif %}
-
-{% if not ns.activas and not ns.entregados and not ns.completados %}
+{% else %}
 <div class="text-center py-5">
     <i class="bi bi-receipt" style="font-size:2.5rem;color:#d1d5db;"></i>
-    <p class="text-muted mt-2 mb-0">No hay ventas con ese filtro.</p>
-</div>
-{% endif %}
-
-{% if ns.entregados %}
-<div class="ventas-folder" style="margin-top:12px;">
-    <button class="ventas-folder-btn ventas-folder-entregados" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('d-none');">
-        <span><i class="bi bi-bag-check"></i> Entregados sin pagar</span>
-        <span class="d-flex align-items-center gap-2"><span class="ventas-section-count">{{ ns.entregados|length }}</span><i class="bi bi-chevron-down ventas-folder-chevron"></i></span>
-    </button>
-    <div class="d-none">
-        {% for v in ns.entregados %}
-        {% include 'ventas/_venta_card_full.html' %}
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-
-{% if ns.completados %}
-<div class="ventas-folder" style="margin-top:8px;">
-    <button class="ventas-folder-btn ventas-folder-completados" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('d-none');">
-        <span><i class="bi bi-check-circle-fill"></i> Completados</span>
-        <span class="d-flex align-items-center gap-2"><span class="ventas-section-count">{{ ns.completados|length }}</span><i class="bi bi-chevron-down ventas-folder-chevron"></i></span>
-    </button>
-    <div class="d-none">
-        {% for v in ns.completados %}
-        {% include 'ventas/_venta_card_full.html' %}
-        {% endfor %}
-    </div>
+    <p class="text-muted mt-2 mb-0">No hay ventas registradas.</p>
 </div>
 {% endif %}

@@ -18,7 +18,6 @@
         <select name="estado_entrega" class="form-select form-select-sm flex-fill" style="border-radius: 8px; min-width: 0;">
             <option value="">Entrega: Todos</option>
             <option value="pendiente" {{ 'selected' if filtro_estado == 'pendiente' }}>Pendiente</option>
-            <option value="en_preparacion" {{ 'selected' if filtro_estado == 'en_preparacion' }}>En Prep.</option>
             <option value="listo" {{ 'selected' if filtro_estado == 'listo' }}>Listo</option>
             <option value="entregado" {{ 'selected' if filtro_estado == 'entregado' }}>Entregado</option>
         </select>
@@ -85,8 +84,6 @@
                             {% if v.estado_entrega != 'entregado' %}
                                 {% if v.estado_entrega == 'listo' %}
                                 <span class="badge bg-info" style="font-size:0.6rem; border-radius: 6px;">Listo</span>
-                                {% elif v.estado_entrega == 'en_preparacion' %}
-                                <span class="badge bg-warning text-dark" style="font-size:0.6rem; border-radius: 6px;">Prep.</span>
                                 {% else %}
                                 <span class="badge bg-secondary" style="font-size:0.6rem; border-radius: 6px;">Pend.</span>
                                 {% endif %}

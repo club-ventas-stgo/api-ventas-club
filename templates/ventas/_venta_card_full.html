@@ -1,4 +1,4 @@
-<div class="vc vc-{{ v.estado_entrega }}" id="vc-{{ v.id }}">
+<div class="vc vc-{{ v.estado_entrega }}" id="vc-{{ v.id }}" data-estado="{{ v.estado_entrega }}" data-pago="{{ v.estado_pago }}">
     <div class="d-flex">
         <div class="vc-stripe st-{{ v.estado_entrega }}"></div>
         <div class="vc-body">
@@ -13,8 +13,8 @@
             <div class="vc-actions">
                 {% if v.estado_entrega != 'entregado' %}
                 <div class="vc-estado-flow">
-                    {% set estados = ['pendiente','en_preparacion','listo','entregado'] %}
-                    {% set labels = {'pendiente':'Pend.','en_preparacion':'Prep.','listo':'Listo','entregado':'Entregado'} %}
+                    {% set estados = ['pendiente','listo','entregado'] %}
+                    {% set labels = {'pendiente':'Pend.','listo':'Listo','entregado':'Entregado'} %}
                     {% for e in estados %}
                         {% if estados.index(e) < estados.index(v.estado_entrega) %}
                         {% elif e == v.estado_entrega %}

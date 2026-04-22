@@ -143,11 +143,11 @@
         <div class="panel preparacion">
             <div class="panel-header">
                 <i class="bi bi-hourglass-split"></i> En Preparacion...
-                <span class="badge-count" id="count-prep">{{ en_preparacion|length }}</span>
+                <span class="badge-count" id="count-prep">{{ pendientes|length }}</span>
             </div>
             <div class="lista-nombres" id="lista-preparacion">
-                {% if en_preparacion %}
-                    {% for p in en_preparacion %}
+                {% if pendientes %}
+                    {% for p in pendientes %}
                     <div class="nombre">
                         <strong>{{ loop.index }}. {{ p.cliente_nombre or 'Pedido #' ~ p.numero_orden }}</strong>
                         <div class="pedido-detalle">
@@ -192,7 +192,7 @@
         fetch(apiUrl)
             .then(r => r.json())
             .then(pedidos => {
-                const prep = pedidos.filter(p => p.estado_entrega === 'pendiente' || p.estado_entrega === 'en_preparacion');
+                const prep = pedidos.filter(p => p.estado_entrega === 'pendiente');
                 const listos = pedidos.filter(p => p.estado_entrega === 'listo');
 
                 document.getElementById('count-prep').textContent = prep.length;

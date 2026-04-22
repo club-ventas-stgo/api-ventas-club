@@ -55,9 +55,9 @@
 <div class="tile mb-2" style="padding: 0.75rem 1rem;">
     <label class="form-label small fw-bold mb-2"><i class="bi bi-truck"></i> Estado de Entrega</label>
     <div class="delivery-checklist">
-        {% set estados = ['pendiente', 'en_preparacion', 'listo', 'entregado'] %}
-        {% set estado_labels = {'pendiente': 'Pendiente', 'en_preparacion': 'En Preparacion', 'listo': 'Listo', 'entregado': 'Entregado'} %}
-        {% set estado_icons = {'pendiente': 'bi-clock', 'en_preparacion': 'bi-fire', 'listo': 'bi-bell-fill', 'entregado': 'bi-check-circle-fill'} %}
+        {% set estados = ['pendiente', 'listo', 'entregado'] %}
+        {% set estado_labels = {'pendiente': 'Pendiente', 'listo': 'Listo', 'entregado': 'Entregado'} %}
+        {% set estado_icons = {'pendiente': 'bi-clock', 'listo': 'bi-bell-fill', 'entregado': 'bi-check-circle-fill'} %}
         {% set current_index = estados.index(venta.estado_entrega) if venta.estado_entrega in estados else 0 %}
 
         {% for estado in estados %}
@@ -151,7 +151,6 @@
                     <label class="form-label small fw-semibold mb-0">Entrega</label>
                     <select name="estado_entrega" class="form-select form-select-sm" style="border-radius: 8px;">
                         <option value="pendiente" {{ 'selected' if venta.estado_entrega == 'pendiente' }}>Pendiente</option>
-                        <option value="en_preparacion" {{ 'selected' if venta.estado_entrega == 'en_preparacion' }}>En Prep.</option>
                         <option value="listo" {{ 'selected' if venta.estado_entrega == 'listo' }}>Listo</option>
                         <option value="entregado" {{ 'selected' if venta.estado_entrega == 'entregado' }}>Entregado</option>
                     </select>

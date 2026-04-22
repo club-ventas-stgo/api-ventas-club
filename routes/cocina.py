@@ -12,30 +12,30 @@ cocina_bp = Blueprint('cocina', __name__, url_prefix='/s')
 @cocina_bp.route('/<codigo>/cocina')
 def panel(codigo):
     stand = get_stand_or_404(codigo)
-    en_preparacion = Venta.query.filter(
+    pendientes = Venta.query.filter(
         Venta.stand_id == stand.id,
-        Venta.estado_entrega.in_(['pendiente', 'en_preparacion'])
+        Venta.estado_entrega == 'pendiente'
     ).order_by(Venta.created_at.asc()).all()
     listos = Venta.query.filter(
         Venta.stand_id == stand.id,
         Venta.estado_entrega == 'listo'
     ).order_by(Venta.created_at.asc()).all()
     productos = Producto.query.filter_by(stand_id=stand.id).all()
-    return render_template('cocina/panel.html', stand=stand, en_preparacion=en_preparacion, listos=listos, productos=productos)
+    return render_template('cocina/panel.html', stand=stand, pendientes=pendientes, listos=listos, productos=productos)
 
 
 @cocina_bp.route('/<codigo>/proyectar')
 def proyectar(codigo):
     stand = get_stand_or_404(codigo)
-    en_preparacion = Venta.query.filter(
+    pendientes = Venta.query.filter(
         Venta.stand_id == stand.id,
-        Venta.estado_entrega.in_(['pendiente', 'en_preparacion'])
+        Venta.estado_entrega == 'pendiente'
     ).order_by(Venta.created_at.asc()).all()
     listos = Venta.query.filter(
         Venta.stand_id == stand.id,
         Venta.estado_entrega == 'listo'
     ).order_by(Venta.created_at.asc()).all()
-    return render_template('cocina/proyectar.html', stand=stand, en_preparacion=en_preparacion, listos=listos)
+    return render_template('cocina/proyectar.html', stand=stand, pendientes=pendientes, listos=listos)
 
 
 @cocina_bp.route('/<codigo>/cocina/api')
@@ -43,7 +43,7 @@ def api_pedidos(codigo):
     stand = get_stand_or_404(codigo)
     pedidos = Venta.query.filter(
         Venta.stand_id == stand.id,
-        Venta.estado_entrega.in_(['pendiente', 'en_preparacion', 'listo'])
+        Venta.estado_entrega.in_(['pendiente', 'listo'])
     ).order_by(Venta.created_at.asc()).all()
 
     data = []

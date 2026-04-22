@@ -30,14 +30,12 @@ def dashboard(codigo):
     total_ventas = stand.ventas.count()
     productos_activos = stand.productos.filter_by(activo=True).count()
     ventas_pendientes = stand.ventas.filter_by(estado_entrega='pendiente').count()
-    ventas_en_prep = stand.ventas.filter_by(estado_entrega='en_preparacion').count()
     total_recaudado = db.session.query(func.coalesce(func.sum(Venta.total_final), 0)).filter_by(stand_id=stand.id).scalar()
     ganancia_neta = total_recaudado - (stand.inversion or 0)
     return render_template('stand/dashboard.html', stand=stand,
                            total_ventas=total_ventas,
                            productos_activos=productos_activos,
                            ventas_pendientes=ventas_pendientes,
-                           ventas_en_prep=ventas_en_prep,
                            total_recaudado=total_recaudado,
                            ganancia_neta=ganancia_neta)
 

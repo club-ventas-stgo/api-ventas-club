@@ -71,7 +71,6 @@ def obtener_resumen_dia(stand, fecha_str):
 
     entregadas = sum(1 for v in ventas if v.estado_entrega == 'entregado')
     listas = sum(1 for v in ventas if v.estado_entrega == 'listo')
-    en_prep = sum(1 for v in ventas if v.estado_entrega == 'en_preparacion')
     pendientes_entrega = sum(1 for v in ventas if v.estado_entrega == 'pendiente')
 
     # Productos mas vendidos del dia
@@ -102,7 +101,6 @@ def obtener_resumen_dia(stand, fecha_str):
         'pago_pendiente': pago_pendiente,
         'entregadas': entregadas,
         'listas': listas,
-        'en_prep': en_prep,
         'pendientes_entrega': pendientes_entrega,
         'productos_ranking': productos_ranking,
     }
@@ -441,7 +439,7 @@ def exportar_dia_excel(codigo, fecha):
         ws.cell(row=row, column=7).alignment = right_align
 
         estado_pago_text = {'pagado': 'Pagado', 'parcial': 'Parcial', 'pendiente': 'Pendiente'}
-        estado_entrega_text = {'entregado': 'Entregado', 'listo': 'Listo', 'en_preparacion': 'En Prep.', 'pendiente': 'Pendiente'}
+        estado_entrega_text = {'entregado': 'Entregado', 'listo': 'Listo', 'pendiente': 'Pendiente'}
         ws.cell(row=row, column=3, value=f"Pago: {estado_pago_text.get(venta.estado_pago, venta.estado_pago)}").font = Font(italic=True, size=9)
         ws.cell(row=row, column=4, value=f"Entrega: {estado_entrega_text.get(venta.estado_entrega, venta.estado_entrega)}").font = Font(italic=True, size=9)
 

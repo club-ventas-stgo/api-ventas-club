@@ -88,6 +88,14 @@ def create_app():
         db.create_all()
         # Add missing columns to existing tables (db.create_all doesn't alter existing tables)
         _add_missing_columns(db)
+        # Migrate en_preparacion -> pendiente (state removed)
+        try:
+            db.session.execute(text(
+                "UPDATE ventas SET estado_entrega='pendiente' WHERE estado_entrega='en_preparacion'"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     return app
 

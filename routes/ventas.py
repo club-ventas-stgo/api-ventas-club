@@ -221,7 +221,7 @@ def cambiar_estado(codigo, venta_id):
     venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
 
     nuevo_estado = request.form.get('estado_entrega')
-    if nuevo_estado in ('pendiente', 'en_preparacion', 'listo', 'entregado'):
+    if nuevo_estado in ('pendiente', 'listo', 'entregado'):
         venta.estado_entrega = nuevo_estado
         db.session.commit()
 

@@ -312,14 +312,14 @@ let searchTimeout = null;
 function refreshVentas() {
     fetch(BASE + '/ventas/partial?cards=1').then(r => r.text()).then(html => {
         const list = document.getElementById('ctrl-ventas-list');
-        if (list) list.innerHTML = html;
+        if (list) { list.innerHTML = html; updateSidebarCounts(); filtrarPorEstado(currentFilter); }
     });
 }
 
 function renderVentaCardJS(v) {
     const det = v.detalles.map(d => `<span>${d.cantidad}x ${d.nombre || d.nombre_producto}</span>`).join('<span class="vc-sep">&middot;</span>');
-    const estados = ['pendiente','en_preparacion','listo','entregado'];
-    const labels = {'pendiente':'Pend.','en_preparacion':'Prep.','listo':'Listo','entregado':'Entregado'};
+    const estados = ['pendiente','listo','entregado'];
+    const labels = {'pendiente':'Pend.','listo':'Listo','entregado':'Entregado'};
     const ci = estados.indexOf(v.estado_entrega);
 
     let estadoHtml = '';
@@ -337,7 +337,7 @@ function renderVentaCardJS(v) {
 
     const notasHtml = v.notas ? `<div class="vc-notas"><i class="bi bi-chat-left-text"></i> ${v.notas}</div>` : '';
 
-    return `<div class="vc vc-${v.estado_entrega}" id="vc-${v.id}"><div class="d-flex"><div class="vc-stripe st-${v.estado_entrega}"></div><div class="vc-body">
+    return `<div class="vc vc-${v.estado_entrega}" id="vc-${v.id}" data-estado="${v.estado_entrega}" data-pago="${v.estado_pago}"><div class="d-flex"><div class="vc-stripe st-${v.estado_entrega}"></div><div class="vc-body">
         <div class="vc-top"><span class="vc-order">#${v.numero_orden}</span><span class="vc-cliente">${v.cliente_nombre || 'Sin nombre'}</span><span class="vc-time">${v.created_at||''}</span><span class="vc-total">${fmt(v.total_final)}</span></div>
         <div class="vc-items">${det}</div>
         ${notasHtml}
@@ -420,21 +420,8 @@ document.addEventListener('click', function(e) {
 });
 
 function filtrarVentas() {
-    const pago = document.getElementById('ctrl-filtro-pago').value;
-    const params = new URLSearchParams();
-    if (pago) params.set('estado_pago', pago);
-    params.set('cards', '1');
-    fetch(BASE + '/ventas/partial?' + params.toString()).then(r => r.text()).then(html => {
-        document.getElementById('panel-ventas').querySelector('.ventas-panel-inner').innerHTML = `
-            <div class="ventas-search-bar">
-                <input type="text" id="ctrl-buscar" placeholder="Buscar #orden o cliente..." oninput="buscarVentasControl(this.value)">
-                <select id="ctrl-filtro-pago" onchange="filtrarVentas()">
-                    <option value="">Pago</option><option value="pendiente" ${pago==='pendiente'?'selected':''}>Debe</option><option value="pagado" ${pago==='pagado'?'selected':''}>Pagado</option>
-                </select>
-            </div>
-            <div id="ctrl-buscar-results" class="d-none mb-2"></div>
-            <div id="ctrl-ventas-list">${html}</div>`;
-    });
+    // Legacy - now handled by sidebar
+    refreshVentas();
 }
 
 // ===== INLINE EDITOR =====
@@ -546,6 +533,8 @@ function updateCardInPlace(ventaId) {
             el.outerHTML = renderVentaCardJS(v);
             const newEl = document.getElementById('vc-' + ventaId);
             if (newEl) { newEl.classList.add('vc-updated'); setTimeout(() => newEl.classList.remove('vc-updated'), 500); }
+            updateSidebarCounts();
+            filtrarPorEstado(currentFilter);
         }
     });
 }
@@ -615,5 +604,51 @@ function eliminarPromo(id) {
     fetch(BASE + '/promociones/' + id + '/eliminar', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'} })
     .then(r => r.json()).then(data => { if (data.success) { showToast('Eliminada'); refreshPromos(); } });
 }
+
+// ===== SIDEBAR FILTERS =====
+let currentFilter = 'todos';
+
+function filtrarPorEstado(filtro) {
+    currentFilter = filtro;
+    document.querySelectorAll('.vs-filter-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.querySelector(`.vs-filter-btn[data-filter="${filtro}"]`);
+    if (btn) btn.classList.add('active');
+
+    document.querySelectorAll('#ctrl-ventas-list .vc').forEach(card => {
+        const estado = card.dataset.estado;
+        const pago = card.dataset.pago;
+        let show = false;
+
+        if (filtro === 'todos') show = true;
+        else if (filtro === 'pendiente') show = (estado === 'pendiente');
+        else if (filtro === 'listo') show = (estado === 'listo');
+        else if (filtro === 'entregados') show = (estado === 'entregado' && pago !== 'pagado');
+        else if (filtro === 'pagados') show = (estado === 'entregado' && pago === 'pagado');
+
+        card.style.display = show ? '' : 'none';
+    });
+}
+
+function updateSidebarCounts() {
+    const cards = document.querySelectorAll('#ctrl-ventas-list .vc');
+    let todos = 0, pendiente = 0, listo = 0, entregados = 0, pagados = 0;
+    cards.forEach(c => {
+        const e = c.dataset.estado, p = c.dataset.pago;
+        todos++;
+        if (e === 'pendiente') pendiente++;
+        else if (e === 'listo') listo++;
+        else if (e === 'entregado' && p !== 'pagado') entregados++;
+        else if (e === 'entregado' && p === 'pagado') pagados++;
+    });
+    const el = id => document.getElementById(id);
+    if (el('count-todos')) el('count-todos').textContent = todos;
+    if (el('count-pendiente')) el('count-pendiente').textContent = pendiente;
+    if (el('count-listo')) el('count-listo').textContent = listo;
+    if (el('count-entregados')) el('count-entregados').textContent = entregados;
+    if (el('count-pagados')) el('count-pagados').textContent = pagados;
+}
+
+// Init counts on load
+document.addEventListener('DOMContentLoaded', updateSidebarCounts);
 </script>
 {% endblock %}
