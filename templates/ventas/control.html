@@ -2,9 +2,15 @@
 {% block title %}Control - {{ stand.nombre }}{% endblock %}
 
 {% block nav_items %}
+{% if sesion %}
+<a class="nav-link text-white py-0" href="{{ url_for('sesiones.detalle', codigo=stand.codigo_acceso, sesion_id=sesion.id) }}">
+    <i class="bi bi-arrow-left"></i> {{ sesion.fecha.strftime('%d/%m') }}{% if sesion.nombre %} — {{ sesion.nombre }}{% endif %}
+</a>
+{% else %}
 <a class="nav-link text-white py-0" href="{{ url_for('stand.dashboard', codigo=stand.codigo_acceso) }}">
     <i class="bi bi-arrow-left"></i> {{ stand.nombre }}
 </a>
+{% endif %}
 {% endblock %}
 
 {% block flashes %}{% endblock %}
@@ -12,6 +18,13 @@
 {% block content %}
 <!-- Toast -->
 <div class="position-fixed top-0 end-0 p-3" style="z-index: 9999;" id="toast-container"></div>
+
+{% if sesion %}
+<div style="background: linear-gradient(135deg, #34c759, #30d158); color: white; padding: 0.35rem 0.75rem; border-radius: 10px; margin-bottom: 0.5rem; font-size: 0.78rem;" class="d-flex align-items-center justify-content-between">
+    <span><i class="bi bi-broadcast"></i> <strong>{{ sesion.fecha.strftime('%d/%m/%Y') }}</strong>{% if sesion.nombre %} — {{ sesion.nombre }}{% endif %}</span>
+    <span class="badge {{ 'bg-light text-success' if sesion.estado == 'abierta' else 'bg-light text-secondary' }}" style="border-radius: 6px; font-size: 0.65rem;">{{ sesion.estado|capitalize }}</span>
+</div>
+{% endif %}
 
 <!-- Tabs -->
 <div class="control-tabs" id="control-tabs">
@@ -223,6 +236,7 @@
 <script>
 const CODIGO = '{{ stand.codigo_acceso }}';
 const BASE = '/s/' + CODIGO;
+const SESION_ID = {{ sesion_id|default('null', true) }};
 
 // Products data for inline editing
 const PRODUCTOS_DATA = {
@@ -323,6 +337,7 @@ document.getElementById('form-venta-ctrl').addEventListener('submit', function(e
     e.preventDefault();
     const fd = new FormData(this);
     fd.set('items', JSON.stringify(Object.values(items).map(i => ({producto_id: i.producto_id, cantidad: i.cantidad, precio: i.precio}))));
+    if (SESION_ID) fd.set('sesion_id', SESION_ID);
     document.getElementById('btn-confirmar').disabled = true;
     fetch(BASE + '/ventas/nueva', { method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'}, body: fd })
     .then(r => r.json())
@@ -344,7 +359,8 @@ document.getElementById('form-venta-ctrl').addEventListener('submit', function(e
 let searchTimeout = null;
 
 function refreshVentas() {
-    fetch(BASE + '/ventas/partial?cards=1').then(r => r.text()).then(html => {
+    const sp = SESION_ID ? '&sesion_id=' + SESION_ID : '';
+    fetch(BASE + '/ventas/partial?cards=1' + sp).then(r => r.text()).then(html => {
         const list = document.getElementById('ctrl-ventas-list');
         if (list) { list.innerHTML = html; updateSidebarCounts(); filtrarPorEstado(currentFilter); }
     });
@@ -399,8 +415,9 @@ function buscarVentasControl(q) {
         }, 200);
     }
 
+    const sp = SESION_ID ? '&sesion_id=' + SESION_ID : '';
     searchTimeout = setTimeout(() => {
-        fetch(BASE + '/ventas/buscar?q=' + encodeURIComponent(q)).then(r => r.json()).then(results => {
+        fetch(BASE + '/ventas/buscar?q=' + encodeURIComponent(q) + sp).then(r => r.json()).then(results => {
             if (!results.length) { res.innerHTML = '<div class="text-center py-3" style="color:#9ca3af;"><i class="bi bi-search" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sin resultados</div>'; }
             else { res.innerHTML = results.map(v => renderVentaCardJS(v)).join(''); }
             res.classList.remove('d-none'); list.style.display = 'none';
@@ -441,7 +458,8 @@ function selectCliente(nombre) {
     clearTimeout(searchTimeout);
     const res = document.getElementById('ctrl-buscar-results');
     const list = document.getElementById('ctrl-ventas-list');
-    fetch(BASE + '/ventas/buscar?q=' + encodeURIComponent(nombre)).then(r => r.json()).then(results => {
+    const sp = SESION_ID ? '&sesion_id=' + SESION_ID : '';
+    fetch(BASE + '/ventas/buscar?q=' + encodeURIComponent(nombre) + sp).then(r => r.json()).then(results => {
         if (!results.length) { res.innerHTML = '<div class="text-center py-3" style="color:#9ca3af;"><i class="bi bi-search" style="font-size:1.5rem;display:block;margin-bottom:4px;"></i>Sin resultados</div>'; }
         else { res.innerHTML = results.map(v => renderVentaCardJS(v)).join(''); }
         res.classList.remove('d-none'); list.style.display = 'none';

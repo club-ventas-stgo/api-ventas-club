@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
 from sqlalchemy import func
 from app import db
-from models import Stand, Producto, Promocion, Venta, Integrante
+from models import Stand, Producto, Promocion, Venta, Integrante, SesionVenta
 from routes.main import comprimir_imagen
 
 stand_bp = Blueprint('stand', __name__, url_prefix='/s')
@@ -27,17 +27,30 @@ def dashboard(codigo):
             flash('El valor de inversion debe ser un numero.', 'danger')
         return redirect(url_for('stand.dashboard', codigo=codigo))
 
-    total_ventas = stand.ventas.count()
     productos_activos = stand.productos.filter_by(activo=True).count()
-    ventas_pendientes = stand.ventas.filter_by(estado_entrega='pendiente').count()
-    total_recaudado = db.session.query(func.coalesce(func.sum(Venta.total_final), 0)).filter_by(stand_id=stand.id).scalar()
+
+    # Filter stats by active session
+    sesion_abierta = SesionVenta.query.filter_by(
+        stand_id=stand.id, estado='abierta'
+    ).order_by(SesionVenta.fecha.desc()).first()
+
+    if sesion_abierta:
+        total_ventas = Venta.query.filter_by(stand_id=stand.id, sesion_id=sesion_abierta.id).count()
+        ventas_pendientes = Venta.query.filter_by(stand_id=stand.id, sesion_id=sesion_abierta.id, estado_entrega='pendiente').count()
+        total_recaudado = db.session.query(func.coalesce(func.sum(Venta.total_final), 0)).filter_by(stand_id=stand.id, sesion_id=sesion_abierta.id).scalar()
+    else:
+        total_ventas = 0
+        ventas_pendientes = 0
+        total_recaudado = 0
+
     ganancia_neta = total_recaudado - (stand.inversion or 0)
     return render_template('stand/dashboard.html', stand=stand,
                            total_ventas=total_ventas,
                            productos_activos=productos_activos,
                            ventas_pendientes=ventas_pendientes,
                            total_recaudado=total_recaudado,
-                           ganancia_neta=ganancia_neta)
+                           ganancia_neta=ganancia_neta,
+                           sesion_abierta=sesion_abierta)
 
 
 @stand_bp.route('/<codigo>/editar', methods=['POST'])

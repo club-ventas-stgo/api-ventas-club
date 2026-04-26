@@ -88,6 +88,7 @@
             padding: 12px;
             margin-bottom: 8px;
             border-left: 4px solid;
+            transition: opacity 0.3s, transform 0.3s;
         }
         .preparacion .pedido-card.estado-pendiente { border-color: #ff5252; }
         .retirar .pedido-card { border-color: #69f0ae; }
@@ -158,6 +159,7 @@
         .btn-listo:hover { background: #00e676; }
         .btn-entregado { background: #2979ff; color: #fff; }
         .btn-entregado:hover { background: #448aff; }
+        .btn-accion:disabled { opacity: 0.5; cursor: not-allowed; }
         .empty-state {
             text-align: center;
             padding: 40px 20px;
@@ -165,6 +167,30 @@
             font-size: 0.9rem;
         }
         .empty-state i { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+
+        /* Animations */
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(-15px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes cardOut {
+            from { opacity: 1; transform: translateY(0) scale(1); max-height: 300px; }
+            to { opacity: 0; transform: translateY(15px) scale(0.97); max-height: 0; padding: 0; margin: 0; overflow: hidden; }
+        }
+        .card-entering { animation: cardIn 0.4s ease forwards; }
+        .card-exiting { animation: cardOut 0.4s ease forwards; }
+
+        .cola-indicator {
+            text-align: center;
+            padding: 8px;
+            font-size: 0.8rem;
+            color: #aaa;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-top: 4px;
+        }
+        .cola-indicator strong { color: #fff; }
+
         @media (max-width: 768px) {
             .panels { flex-direction: column; }
             body { padding: 8px; }
@@ -191,41 +217,40 @@
                 <span class="count" id="count-prep">{{ pendientes|length }}</span>
             </div>
             <div class="panel-body" id="lista-preparacion">
-                {% if pendientes %}
-                    {% for p in pendientes %}
-                    <div class="pedido-card estado-pendiente">
-                        <div class="pedido-header">
-                            <strong>#{{ p.numero_orden }}</strong>
-                            <span class="hora">{{ p.created_at|local_time('%H:%M') }}</span>
-                        </div>
-                        {% if p.cliente_nombre %}
-                        <div class="pedido-cliente"><i class="bi bi-person"></i> {{ p.cliente_nombre }}</div>
-                        {% endif %}
-                        <ul class="pedido-items">
-                            {% for d in p.detalles %}
-                            <li>
-                                {% if d.producto and d.producto.foto %}<img src="{{ d.producto.foto }}" class="pedido-item-foto">{% endif %}
-                                <span><strong>{{ d.cantidad }}x</strong> {{ d.nombre_producto }}</span>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                        {% if p.notas %}
-                        <div class="pedido-notas"><i class="bi bi-chat-text"></i> {{ p.notas }}</div>
-                        {% endif %}
-                        <form method="POST" action="{{ url_for('ventas.cambiar_estado', codigo=stand.codigo_acceso, venta_id=p.id) }}">
-                            <input type="hidden" name="estado_entrega" value="listo">
-                            <input type="hidden" name="redirect" value="cocina">
-                            <button type="submit" class="btn-accion btn-listo">
-                                <i class="bi bi-check-lg"></i> Listo!
-                            </button>
-                        </form>
+                {% for p in pendientes[:5] %}
+                <div class="pedido-card estado-pendiente" data-id="{{ p.id }}">
+                    <div class="pedido-header">
+                        <strong>#{{ p.numero_orden }}</strong>
+                        <span class="hora">{{ p.created_at|local_time('%H:%M') }}</span>
                     </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        <i class="bi bi-check-circle"></i>
-                        Sin pedidos pendientes
-                    </div>
+                    {% if p.cliente_nombre %}
+                    <div class="pedido-cliente"><i class="bi bi-person"></i> {{ p.cliente_nombre }}</div>
+                    {% endif %}
+                    <ul class="pedido-items">
+                        {% for d in p.detalles %}
+                        <li>
+                            {% if d.producto and d.producto.foto %}<img src="{{ d.producto.foto }}" class="pedido-item-foto">{% endif %}
+                            <span><strong>{{ d.cantidad }}x</strong> {{ d.nombre_producto }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% if p.notas %}
+                    <div class="pedido-notas"><i class="bi bi-chat-text"></i> {{ p.notas }}</div>
+                    {% endif %}
+                    <button class="btn-accion btn-listo" onclick="marcarEstado({{ p.id }}, 'listo', this)">
+                        <i class="bi bi-check-lg"></i> Listo!
+                    </button>
+                </div>
+                {% endfor %}
+                {% if pendientes|length == 0 %}
+                <div class="empty-state">
+                    <i class="bi bi-check-circle"></i>
+                    Sin pedidos pendientes
+                </div>
+                {% elif pendientes|length > 5 %}
+                <div class="cola-indicator" id="cola-prep">
+                    <i class="bi bi-clock-history"></i> <strong>+{{ pendientes|length - 5 }}</strong> en cola
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -237,41 +262,40 @@
                 <span class="count" id="count-listos">{{ listos|length }}</span>
             </div>
             <div class="panel-body" id="lista-listos">
-                {% if listos %}
-                    {% for p in listos %}
-                    <div class="pedido-card">
-                        <div class="pedido-header">
-                            <strong>#{{ p.numero_orden }}</strong>
-                            <span class="hora">{{ p.created_at|local_time('%H:%M') }}</span>
-                        </div>
-                        {% if p.cliente_nombre %}
-                        <div class="pedido-cliente"><i class="bi bi-person"></i> {{ p.cliente_nombre }}</div>
-                        {% endif %}
-                        <ul class="pedido-items">
-                            {% for d in p.detalles %}
-                            <li>
-                                {% if d.producto and d.producto.foto %}<img src="{{ d.producto.foto }}" class="pedido-item-foto">{% endif %}
-                                <span><strong>{{ d.cantidad }}x</strong> {{ d.nombre_producto }}</span>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                        {% if p.notas %}
-                        <div class="pedido-notas"><i class="bi bi-chat-text"></i> {{ p.notas }}</div>
-                        {% endif %}
-                        <form method="POST" action="{{ url_for('ventas.cambiar_estado', codigo=stand.codigo_acceso, venta_id=p.id) }}">
-                            <input type="hidden" name="estado_entrega" value="entregado">
-                            <input type="hidden" name="redirect" value="cocina">
-                            <button type="submit" class="btn-accion btn-entregado">
-                                <i class="bi bi-bag-check"></i> Entregado
-                            </button>
-                        </form>
+                {% for p in listos[:5] %}
+                <div class="pedido-card" data-id="{{ p.id }}">
+                    <div class="pedido-header">
+                        <strong>#{{ p.numero_orden }}</strong>
+                        <span class="hora">{{ p.created_at|local_time('%H:%M') }}</span>
                     </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        <i class="bi bi-hourglass"></i>
-                        Esperando pedidos listos
-                    </div>
+                    {% if p.cliente_nombre %}
+                    <div class="pedido-cliente"><i class="bi bi-person"></i> {{ p.cliente_nombre }}</div>
+                    {% endif %}
+                    <ul class="pedido-items">
+                        {% for d in p.detalles %}
+                        <li>
+                            {% if d.producto and d.producto.foto %}<img src="{{ d.producto.foto }}" class="pedido-item-foto">{% endif %}
+                            <span><strong>{{ d.cantidad }}x</strong> {{ d.nombre_producto }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% if p.notas %}
+                    <div class="pedido-notas"><i class="bi bi-chat-text"></i> {{ p.notas }}</div>
+                    {% endif %}
+                    <button class="btn-accion btn-entregado" onclick="marcarEstado({{ p.id }}, 'entregado', this)">
+                        <i class="bi bi-bag-check"></i> Entregado
+                    </button>
+                </div>
+                {% endfor %}
+                {% if listos|length == 0 %}
+                <div class="empty-state">
+                    <i class="bi bi-hourglass"></i>
+                    Esperando pedidos listos
+                </div>
+                {% elif listos|length > 5 %}
+                <div class="cola-indicator" id="cola-listos">
+                    <i class="bi bi-clock-history"></i> <strong>+{{ listos|length - 5 }}</strong> en cola
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -280,13 +304,33 @@
     <script>
     const apiUrl = "{{ url_for('cocina.api_pedidos', codigo=stand.codigo_acceso) }}";
     const codigoStand = "{{ stand.codigo_acceso }}";
+    const MAX_VISIBLE = 5;
 
-    // Product photos map for JS refresh
     const PRODUCT_PHOTOS = {
     {% for p in productos %}{% if p.foto %}
         '{{ p.nombre|e }}': '{{ p.foto }}',
     {% endif %}{% endfor %}
     };
+
+    // AJAX button action
+    function marcarEstado(ventaId, estado, btn) {
+        btn.disabled = true;
+        const formData = new FormData();
+        formData.append('estado_entrega', estado);
+        formData.append('redirect', 'cocina');
+
+        fetch(`/s/${codigoStand}/ventas/${ventaId}/estado`, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        })
+        .then(r => r.json())
+        .then(() => refresh())
+        .catch(err => {
+            console.error('Error:', err);
+            btn.disabled = false;
+        });
+    }
 
     function buildPedidoCard(p, showBtn) {
         const clienteHtml = p.cliente_nombre ? `<div class="pedido-cliente"><i class="bi bi-person"></i> ${p.cliente_nombre}</div>` : '';
@@ -299,20 +343,12 @@
 
         let btnHtml = '';
         if (showBtn === 'listo') {
-            btnHtml = `<form method="POST" action="/s/${codigoStand}/ventas/${p.id}/estado">
-                <input type="hidden" name="estado_entrega" value="listo">
-                <input type="hidden" name="redirect" value="cocina">
-                <button type="submit" class="btn-accion btn-listo"><i class="bi bi-check-lg"></i> Listo!</button>
-            </form>`;
+            btnHtml = `<button class="btn-accion btn-listo" onclick="marcarEstado(${p.id}, 'listo', this)"><i class="bi bi-check-lg"></i> Listo!</button>`;
         } else if (showBtn === 'entregado') {
-            btnHtml = `<form method="POST" action="/s/${codigoStand}/ventas/${p.id}/estado">
-                <input type="hidden" name="estado_entrega" value="entregado">
-                <input type="hidden" name="redirect" value="cocina">
-                <button type="submit" class="btn-accion btn-entregado"><i class="bi bi-bag-check"></i> Entregado</button>
-            </form>`;
+            btnHtml = `<button class="btn-accion btn-entregado" onclick="marcarEstado(${p.id}, 'entregado', this)"><i class="bi bi-bag-check"></i> Entregado</button>`;
         }
 
-        return `<div class="pedido-card estado-${p.estado_entrega}">
+        return `<div class="pedido-card estado-${p.estado_entrega}" data-id="${p.id}">
             <div class="pedido-header"><strong>#${p.numero_orden}</strong><span class="hora">${p.created_at}</span></div>
             ${clienteHtml}
             <ul class="pedido-items">${itemsHtml}</ul>
@@ -321,29 +357,95 @@
         </div>`;
     }
 
+    function reconcilePanel(container, items, btnType, emptyIcon, emptyText, colaId, totalCount) {
+        const currentCards = container.querySelectorAll('.pedido-card[data-id]');
+        const currentIds = new Set([...currentCards].map(c => c.dataset.id));
+        const newIds = new Set(items.map(p => String(p.id)));
+
+        // Remove cards that are gone
+        let removals = [];
+        currentCards.forEach(card => {
+            if (!newIds.has(card.dataset.id)) {
+                card.classList.add('card-exiting');
+                removals.push(card);
+            }
+        });
+
+        // Remove empty state if exists
+        const emptyState = container.querySelector('.empty-state');
+        if (emptyState && items.length > 0) emptyState.remove();
+
+        // Remove old cola indicator
+        const oldCola = container.querySelector('.cola-indicator');
+        if (oldCola) oldCola.remove();
+
+        // After exit animation, remove and add new cards
+        const delay = removals.length > 0 ? 400 : 0;
+        setTimeout(() => {
+            removals.forEach(card => card.remove());
+
+            // Add new cards that don't exist yet
+            items.forEach(p => {
+                if (!currentIds.has(String(p.id))) {
+                    const temp = document.createElement('div');
+                    temp.innerHTML = buildPedidoCard(p, btnType);
+                    const newCard = temp.firstElementChild;
+                    newCard.classList.add('card-entering');
+                    // Insert before cola indicator or at end
+                    container.appendChild(newCard);
+                    // Remove animation class after done
+                    setTimeout(() => newCard.classList.remove('card-entering'), 400);
+                }
+            });
+
+            // Reorder cards to match API order
+            const allCards = [...container.querySelectorAll('.pedido-card[data-id]')];
+            const idOrder = items.map(p => String(p.id));
+            allCards.sort((a, b) => idOrder.indexOf(a.dataset.id) - idOrder.indexOf(b.dataset.id));
+            allCards.forEach(card => container.appendChild(card));
+
+            // Show empty state if needed
+            if (items.length === 0 && !container.querySelector('.empty-state')) {
+                container.innerHTML = `<div class="empty-state"><i class="bi bi-${emptyIcon}"></i>${emptyText}</div>`;
+            }
+
+            // Show cola indicator if needed
+            if (totalCount > MAX_VISIBLE) {
+                const colaDiv = document.createElement('div');
+                colaDiv.className = 'cola-indicator';
+                colaDiv.id = colaId;
+                colaDiv.innerHTML = `<i class="bi bi-clock-history"></i> <strong>+${totalCount - MAX_VISIBLE}</strong> en cola`;
+                container.appendChild(colaDiv);
+            }
+        }, delay);
+    }
+
     function refresh() {
         fetch(apiUrl)
             .then(r => r.json())
             .then(pedidos => {
-                const prep = pedidos.filter(p => p.estado_entrega === 'pendiente');
-                const listos = pedidos.filter(p => p.estado_entrega === 'listo');
+                const allPrep = pedidos.filter(p => p.estado_entrega === 'pendiente');
+                const allListos = pedidos.filter(p => p.estado_entrega === 'listo');
 
-                document.getElementById('count-prep').textContent = prep.length;
-                document.getElementById('count-listos').textContent = listos.length;
+                document.getElementById('count-prep').textContent = allPrep.length;
+                document.getElementById('count-listos').textContent = allListos.length;
 
-                const listaPrep = document.getElementById('lista-preparacion');
-                if (prep.length === 0) {
-                    listaPrep.innerHTML = '<div class="empty-state"><i class="bi bi-check-circle"></i>Sin pedidos pendientes</div>';
-                } else {
-                    listaPrep.innerHTML = prep.map(p => buildPedidoCard(p, 'listo')).join('');
-                }
+                const visiblePrep = allPrep.slice(0, MAX_VISIBLE);
+                const visibleListos = allListos.slice(0, MAX_VISIBLE);
 
-                const listaListos = document.getElementById('lista-listos');
-                if (listos.length === 0) {
-                    listaListos.innerHTML = '<div class="empty-state"><i class="bi bi-hourglass"></i>Esperando pedidos listos</div>';
-                } else {
-                    listaListos.innerHTML = listos.map(p => buildPedidoCard(p, 'entregado')).join('');
-                }
+                reconcilePanel(
+                    document.getElementById('lista-preparacion'),
+                    visiblePrep, 'listo',
+                    'check-circle', 'Sin pedidos pendientes',
+                    'cola-prep', allPrep.length
+                );
+
+                reconcilePanel(
+                    document.getElementById('lista-listos'),
+                    visibleListos, 'entregado',
+                    'hourglass', 'Esperando pedidos listos',
+                    'cola-listos', allListos.length
+                );
             })
             .catch(err => console.error('Error refreshing:', err));
     }

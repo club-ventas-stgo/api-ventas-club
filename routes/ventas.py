@@ -316,8 +316,11 @@ def lista_partial(codigo):
     stand = get_stand_or_404(codigo)
     filtro_estado = request.args.get('estado_entrega', '')
     filtro_pago = request.args.get('estado_pago', '')
+    sesion_id = request.args.get('sesion_id', type=int)
 
     query = stand.ventas
+    if sesion_id:
+        query = query.filter_by(sesion_id=sesion_id)
     if filtro_estado:
         query = query.filter_by(estado_entrega=filtro_estado)
     if filtro_pago:
@@ -459,17 +462,22 @@ def buscar(codigo):
     """Search sales by customer name or order number."""
     stand = get_stand_or_404(codigo)
     q = request.args.get('q', '').strip()
+    sesion_id = request.args.get('sesion_id', type=int)
 
     if not q:
         return jsonify([])
 
-    ventas = Venta.query.filter(
+    filters = [
         Venta.stand_id == stand.id,
         db.or_(
             Venta.cliente_nombre.ilike(f'%{q}%'),
             Venta.numero_orden == (int(q) if q.isdigit() else -1)
         )
-    ).order_by(Venta.created_at.desc()).limit(20).all()
+    ]
+    if sesion_id:
+        filters.append(Venta.sesion_id == sesion_id)
+
+    ventas = Venta.query.filter(*filters).order_by(Venta.created_at.desc()).limit(20).all()
 
     results = [{
         'id': v.id,
@@ -549,8 +557,18 @@ def control(codigo):
     promociones = stand.promociones.order_by(Promocion.activa.desc(), Promocion.created_at.desc()).all()
     promociones_activas = [p for p in promociones if p.activa]
 
+    # Session filtering
+    sesion_id = request.args.get('sesion_id', type=int)
+    sesion = None
+    if sesion_id:
+        sesion = SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first()
+
     # Ventas
-    ventas = stand.ventas.order_by(Venta.created_at.desc()).all()
+    query = stand.ventas
+    if sesion:
+        query = query.filter_by(sesion_id=sesion.id)
+    ventas = query.order_by(Venta.created_at.desc()).all()
+
     ventas_por_dia = OrderedDict()
     for v in ventas:
         local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
@@ -567,7 +585,8 @@ def control(codigo):
     return render_template('ventas/control.html', stand=stand,
                            productos=productos, productos_activos=productos_activos,
                            promociones=promociones, promociones_activas=promociones_activas,
-                           promos_json=promos_json, ventas_por_dia=ventas_por_dia)
+                           promos_json=promos_json, ventas_por_dia=ventas_por_dia,
+                           sesion=sesion, sesion_id=sesion_id)
 
 
 @ventas_bp.route('/<codigo>/ventas/<int:venta_id>/json')

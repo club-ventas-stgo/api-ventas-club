@@ -134,7 +134,8 @@ def detalle(codigo, sesion_id):
     resumen = obtener_resumen_sesion(ventas)
 
     return render_template('sesiones/detalle.html', stand=stand, sesion=sesion,
-                           resumen=resumen, integrantes_disponibles=integrantes_disponibles)
+                           resumen=resumen, integrantes_disponibles=integrantes_disponibles,
+                           formato_fecha_sesion=formato_fecha_sesion)
 
 
 @sesiones_bp.route('/<codigo>/sesiones/<int:sesion_id>/estado', methods=['POST'])
@@ -148,6 +149,8 @@ def cambiar_estado(codigo, sesion_id):
         db.session.commit()
         flash(f'Sesion {nuevo_estado}.', 'success')
 
+    if sesion.estado == 'abierta':
+        return redirect(url_for('ventas.control', codigo=codigo, sesion_id=sesion.id))
     return redirect(url_for('sesiones.detalle', codigo=codigo, sesion_id=sesion.id))
 
 

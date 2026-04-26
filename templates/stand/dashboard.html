@@ -19,6 +19,36 @@
     </div>
 </div>
 
+<!-- Session banner -->
+{% if sesion_abierta %}
+<div class="tile mb-3" style="padding: 0.6rem 1rem; background: linear-gradient(135deg, #34c759, #30d158); color: white;">
+    <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-broadcast" style="font-size: 1.1rem;"></i>
+            <div>
+                <div class="fw-bold" style="font-size: 0.85rem;">Sesion Activa</div>
+                <div style="font-size: 0.72rem; opacity: 0.9;">{{ sesion_abierta.fecha.strftime('%d/%m/%Y') }}{% if sesion_abierta.nombre %} — {{ sesion_abierta.nombre }}{% endif %}</div>
+            </div>
+        </div>
+        <a href="{{ url_for('sesiones.detalle', codigo=stand.codigo_acceso, sesion_id=sesion_abierta.id) }}" class="btn btn-sm btn-light fw-semibold" style="border-radius: 8px; font-size: 0.72rem;">
+            <i class="bi bi-gear"></i> Gestionar
+        </a>
+    </div>
+</div>
+{% else %}
+<div class="tile mb-3" style="padding: 0.5rem 1rem; background: #f8f9fa; border: 1px dashed #dee2e6;">
+    <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-calendar-x text-muted"></i>
+            <span class="text-muted" style="font-size: 0.82rem;">Sin sesion activa</span>
+        </div>
+        <a href="{{ url_for('sesiones.lista', codigo=stand.codigo_acceso) }}" class="btn btn-sm btn-outline-primary" style="border-radius: 8px; font-size: 0.72rem;">
+            <i class="bi bi-plus"></i> Crear Sesion
+        </a>
+    </div>
+</div>
+{% endif %}
+
 <!-- Stats row -->
 <div class="row g-2 mb-3">
     <div class="col-6 col-sm-3">
@@ -72,7 +102,7 @@
 </div>
 
 <!-- Panel de Control -->
-<a href="{{ url_for('ventas.control', codigo=stand.codigo_acceso) }}" class="tile-link d-block mb-3">
+<a href="{{ url_for('ventas.control', codigo=stand.codigo_acceso, sesion_id=sesion_abierta.id if sesion_abierta else none) }}" class="tile-link d-block mb-3">
     <div class="tile" style="padding: 1.25rem; background: linear-gradient(135deg, #007aff, #5856d6); color: white;">
         <div class="d-flex align-items-center gap-3">
             <div class="d-flex align-items-center justify-content-center" style="width: 52px; height: 52px; border-radius: 14px; background: rgba(255,255,255,0.2); flex-shrink: 0;">

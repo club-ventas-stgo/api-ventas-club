@@ -44,8 +44,8 @@
             </button>
         </form>
         {% elif sesion.estado == 'abierta' %}
-        <a href="{{ url_for('ventas.nueva', codigo=stand.codigo_acceso, sesion_id=sesion.id) }}" class="btn btn-success btn-sm flex-fill" style="border-radius: 10px;">
-            <i class="bi bi-cart-plus"></i> Nueva Venta
+        <a href="{{ url_for('ventas.control', codigo=stand.codigo_acceso, sesion_id=sesion.id) }}" class="btn btn-success btn-sm flex-fill" style="border-radius: 10px;">
+            <i class="bi bi-columns-gap"></i> Panel de Control
         </a>
         <form method="POST" action="{{ url_for('sesiones.cambiar_estado', codigo=stand.codigo_acceso, sesion_id=sesion.id) }}" class="flex-fill">
             <input type="hidden" name="estado" value="cerrada">
@@ -60,6 +60,11 @@
                 <i class="bi bi-arrow-counterclockwise"></i> Reabrir
             </button>
         </form>
+        {% if resumen.total_ventas > 0 %}
+        <a href="{{ url_for('ventas.control', codigo=stand.codigo_acceso, sesion_id=sesion.id) }}" class="btn btn-outline-primary btn-sm flex-fill" style="border-radius: 10px;">
+            <i class="bi bi-receipt"></i> Ver Ventas
+        </a>
+        {% endif %}
         {% endif %}
     </div>
 </div>
