@@ -43,6 +43,11 @@ def get_promos_activas_dict(stand_id):
 def get_or_create_session(stand_id):
     """Get or create a session for today (Chile TZ). Returns sesion_id."""
     hoy = datetime.now(timezone.utc).astimezone(CHILE_TZ).date()
+    # Prefer an open session for today
+    sesion = SesionVenta.query.filter_by(stand_id=stand_id, fecha=hoy, estado='abierta').first()
+    if sesion:
+        return sesion.id
+    # Fall back to any session for today (e.g. programada)
     sesion = SesionVenta.query.filter_by(stand_id=stand_id, fecha=hoy).first()
     if sesion:
         if sesion.estado == 'programada':
