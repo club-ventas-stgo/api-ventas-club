@@ -211,31 +211,41 @@
     <div class="collapse show" id="roles-collapse">
         {% if sesion.integrantes %}
         <div style="padding: 0.5rem 0.75rem;">
-            {% set roles = {'cocina': [], 'atencion': [], 'entrega': []} %}
+            {% set roles_map = {'cocina': [], 'atencion': [], 'entrega': []} %}
             {% for si in sesion.integrantes %}
-                {% if si.rol in roles %}
-                    {% if roles[si.rol].append(si.integrante.nombre) %}{% endif %}
+                {% if si.rol in roles_map %}
+                    {% if roles_map[si.rol].append(si.integrante.nombre) %}{% endif %}
                 {% endif %}
             {% endfor %}
 
-            {% if roles['cocina'] %}
+            {% if roles_map['cocina'] %}
             <div class="mb-1">
                 <span class="badge bg-danger" style="border-radius: 6px; font-size: 0.68rem;"><i class="bi bi-fire"></i> Cocina</span>
-                <small>{{ roles['cocina']|join(', ') }}</small>
+                <small>{{ roles_map['cocina']|join(', ') }}</small>
             </div>
             {% endif %}
-            {% if roles['atencion'] %}
+            {% if roles_map['atencion'] %}
             <div class="mb-1">
                 <span class="badge bg-primary" style="border-radius: 6px; font-size: 0.68rem;"><i class="bi bi-person"></i> Atencion</span>
-                <small>{{ roles['atencion']|join(', ') }}</small>
+                <small>{{ roles_map['atencion']|join(', ') }}</small>
             </div>
             {% endif %}
-            {% if roles['entrega'] %}
+            {% if roles_map['entrega'] %}
             <div class="mb-1">
                 <span class="badge bg-success" style="border-radius: 6px; font-size: 0.68rem;"><i class="bi bi-truck"></i> Entrega</span>
-                <small>{{ roles['entrega']|join(', ') }}</small>
+                <small>{{ roles_map['entrega']|join(', ') }}</small>
             </div>
             {% endif %}
+
+            {% set comentarios_mostrados = [] %}
+            {% for si in sesion.integrantes %}
+                {% if si.comentario and si.integrante_id not in comentarios_mostrados %}
+                <div class="mt-1" style="font-size: 0.72rem;">
+                    <i class="bi bi-chat-left-text text-muted"></i> <strong>{{ si.integrante.nombre }}:</strong> <span class="text-muted">{{ si.comentario }}</span>
+                </div>
+                {% if comentarios_mostrados.append(si.integrante_id) %}{% endif %}
+                {% endif %}
+            {% endfor %}
         </div>
         {% endif %}
 
@@ -300,27 +310,51 @@
 
 <!-- Modal asignar roles -->
 <div class="modal fade" id="modal-roles" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('sesiones.gestionar_integrantes', codigo=stand.codigo_acceso, sesion_id=sesion.id) }}">
                 <div class="modal-header py-2">
-                    <h6 class="modal-title fw-bold"><i class="bi bi-people"></i> Asignar Roles</h6>
+                    <h6 class="modal-title fw-bold"><i class="bi bi-people"></i> Equipo y Roles</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     {% if integrantes_disponibles %}
                     {% set asignaciones = {} %}
+                    {% set comentarios = {} %}
                     {% for si in sesion.integrantes %}
                         {% if si.integrante_id not in asignaciones %}
                             {% if asignaciones.update({si.integrante_id: []}) %}{% endif %}
                         {% endif %}
                         {% if asignaciones[si.integrante_id].append(si.rol) %}{% endif %}
+                        {% if si.comentario and si.integrante_id not in comentarios %}
+                            {% if comentarios.update({si.integrante_id: si.comentario}) %}{% endif %}
+                        {% endif %}
                     {% endfor %}
 
                     {% for integ in integrantes_disponibles %}
                     <div class="mb-3 pb-2 border-bottom">
-                        <strong class="small">{{ integ.nombre }}</strong>
-                        <div class="d-flex gap-2 mt-1">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong class="small">{{ integ.nombre }}</strong>
+                            <div class="d-flex gap-1">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" style="border-radius:6px;padding:0 4px;font-size:0.65rem;" data-bs-toggle="collapse" data-bs-target="#edit-integ-{{ integ.id }}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" style="border-radius:6px;padding:0 4px;font-size:0.65rem;" onclick="eliminarInteg({{ integ.id }}, '{{ integ.nombre }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Inline edit (collapsed) -->
+                        <div class="collapse mt-1" id="edit-integ-{{ integ.id }}">
+                            <div class="d-flex gap-1 mb-1">
+                                <input type="text" class="form-control form-control-sm" id="edit-nombre-{{ integ.id }}" value="{{ integ.nombre }}" placeholder="Nombre" style="border-radius:6px;font-size:0.75rem;">
+                                <input type="text" class="form-control form-control-sm" id="edit-tel-{{ integ.id }}" value="{{ integ.telefono or '' }}" placeholder="Tel" style="border-radius:6px;font-size:0.75rem;width:100px;">
+                                <button type="button" class="btn btn-sm btn-success flex-shrink-0" onclick="editarInteg({{ integ.id }})" style="border-radius:6px;font-size:0.7rem;padding:0 6px;">
+                                    <i class="bi bi-check"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 mt-1 flex-wrap">
                             {% set roles_actuales = asignaciones.get(integ.id, []) %}
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="roles_{{ integ.id }}" value="cocina" id="r-{{ integ.id }}-c" {{ 'checked' if 'cocina' in roles_actuales }}>
@@ -335,6 +369,7 @@
                                 <label class="form-check-label small" for="r-{{ integ.id }}-e"><i class="bi bi-truck text-success"></i> Entrega</label>
                             </div>
                         </div>
+                        <input type="text" class="form-control form-control-sm mt-1" name="comentario_{{ integ.id }}" value="{{ comentarios.get(integ.id, '') }}" placeholder="Comentario (ej: Tiempo completo, Faltó...)" style="border-radius:8px;font-size:0.72rem;">
                     </div>
                     {% endfor %}
                     {% else %}
@@ -373,6 +408,28 @@ function crearIntegrante() {
     form.action = '{{ url_for("sesiones.nuevo_integrante", codigo=stand.codigo_acceso, sesion_id=sesion.id) }}';
     const inputN = document.createElement('input'); inputN.name = 'nombre'; inputN.value = nombre; form.appendChild(inputN);
     const inputT = document.createElement('input'); inputT.name = 'telefono'; inputT.value = telefono; form.appendChild(inputT);
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function editarInteg(id) {
+    const nombre = document.getElementById('edit-nombre-' + id).value.trim();
+    const telefono = document.getElementById('edit-tel-' + id).value.trim();
+    if (!nombre) { alert('El nombre es obligatorio.'); return; }
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/s/{{ stand.codigo_acceso }}/sesiones/{{ sesion.id }}/integrante/' + id + '/editar';
+    const inputN = document.createElement('input'); inputN.name = 'nombre'; inputN.value = nombre; form.appendChild(inputN);
+    const inputT = document.createElement('input'); inputT.name = 'telefono'; inputT.value = telefono; form.appendChild(inputT);
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function eliminarInteg(id, nombre) {
+    if (!confirm('Eliminar a "' + nombre + '"? Se quitara de todas las sesiones.')) return;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/s/{{ stand.codigo_acceso }}/sesiones/{{ sesion.id }}/integrante/' + id + '/eliminar';
     document.body.appendChild(form);
     form.submit();
 }

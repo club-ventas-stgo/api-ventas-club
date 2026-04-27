@@ -30,9 +30,12 @@ def dashboard(codigo):
     productos_activos = stand.productos.filter_by(activo=True).count()
 
     # Filter stats by active session
-    sesion_abierta = SesionVenta.query.filter_by(
-        stand_id=stand.id, estado='abierta'
-    ).order_by(SesionVenta.fecha.desc()).first()
+    try:
+        sesion_abierta = SesionVenta.query.filter_by(
+            stand_id=stand.id, estado='abierta'
+        ).order_by(SesionVenta.fecha.desc()).first()
+    except Exception:
+        sesion_abierta = None
 
     if sesion_abierta:
         total_ventas = Venta.query.filter_by(stand_id=stand.id, sesion_id=sesion_abierta.id).count()

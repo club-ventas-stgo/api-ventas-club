@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -6,6 +7,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy import inspect, text
 from dotenv import load_dotenv
+
+logging.basicConfig(level=logging.INFO)
 
 load_dotenv()
 
@@ -65,7 +68,16 @@ def create_app():
 
     @app.route('/api/health')
     def health():
-        return {'status': 'ok'}
+        try:
+            inspector = inspect(db.engine)
+            tables = inspector.get_table_names()
+            db_info = {}
+            for t in tables:
+                cols = [c['name'] for c in inspector.get_columns(t)]
+                db_info[t] = cols
+            return {'status': 'ok', 'tables': db_info}
+        except Exception as e:
+            return {'status': 'error', 'error': str(e)}
 
     @app.errorhandler(413)
     def too_large(e):
@@ -75,6 +87,8 @@ def create_app():
 
     @app.errorhandler(500)
     def internal_error(e):
+        import logging
+        logging.exception('Internal Server Error: %s', e)
         db.session.rollback()
         return render_template('error.html', error_code=500,
                                error_msg='Ocurrió un error interno. Por favor vuelve atrás e intenta de nuevo.'), 500
@@ -86,6 +100,20 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        # Log created tables for debugging
+        try:
+            insp = inspect(db.engine)
+            tables = insp.get_table_names()
+            logging.info(f'DB tables after create_all: {tables}')
+            for t in ('sesiones_venta', 'sesion_integrantes', 'integrantes', 'ventas'):
+                if t in tables:
+                    cols = [c['name'] for c in insp.get_columns(t)]
+                    logging.info(f'  {t} columns: {cols}')
+                else:
+                    logging.warning(f'  TABLE MISSING: {t}')
+        except Exception as e:
+            logging.warning(f'Could not inspect DB: {e}')
+
         # Add missing columns to existing tables (db.create_all doesn't alter existing tables)
         _add_missing_columns(db)
         # Migrate en_preparacion -> pendiente (state removed)
@@ -102,22 +130,35 @@ def create_app():
 
 def _add_missing_columns(db):
     """Add columns that db.create_all() can't add to existing tables."""
+    import logging
     inspector = inspect(db.engine)
+    table_names = inspector.get_table_names()
     for table_name, model in db.Model.metadata.tables.items():
-        if table_name not in inspector.get_table_names():
+        if table_name not in table_names:
             continue
         existing_cols = {c['name'] for c in inspector.get_columns(table_name)}
         for col in model.columns:
             if col.name not in existing_cols:
-                col_type = col.type.compile(db.engine.dialect)
-                nullable = "NULL" if col.nullable else "NOT NULL"
-                default = ""
-                if col.default is not None and col.default.is_scalar:
-                    default = f" DEFAULT {col.default.arg!r}"
-                db.session.execute(text(
-                    f'ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type} {nullable}{default}'
-                ))
-                db.session.commit()
+                try:
+                    col_type = col.type.compile(db.engine.dialect)
+                    nullable = "NULL" if col.nullable else "NOT NULL"
+                    default = ""
+                    if col.default is not None and col.default.is_scalar:
+                        val = col.default.arg
+                        if isinstance(val, bool):
+                            default = f" DEFAULT {'true' if val else 'false'}"
+                        elif isinstance(val, str):
+                            safe_val = val.replace("'", "''")
+                            default = f" DEFAULT '{safe_val}'"
+                        elif isinstance(val, (int, float)):
+                            default = f" DEFAULT {val}"
+                    sql = f'ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type} {nullable}{default}'
+                    logging.info(f'Adding missing column: {sql}')
+                    db.session.execute(text(sql))
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    logging.warning(f'Could not add column {table_name}.{col.name}: {e}')
 
 
 app = create_app()

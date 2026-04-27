@@ -557,41 +557,48 @@ def actualizar_pago(codigo, venta_id):
 def control(codigo):
     """Unified control panel with all tabs."""
     stand = get_stand_or_404(codigo)
-    productos = stand.productos.order_by(Producto.activo.desc(), Producto.created_at.desc()).all()
-    productos_activos = [p for p in productos if p.activo]
-    promociones = stand.promociones.order_by(Promocion.activa.desc(), Promocion.created_at.desc()).all()
-    promociones_activas = [p for p in promociones if p.activa]
 
-    # Session filtering
-    sesion_id = request.args.get('sesion_id', type=int)
-    sesion = None
-    if sesion_id:
-        sesion = SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first()
+    try:
+        productos = stand.productos.order_by(Producto.activo.desc(), Producto.created_at.desc()).all()
+        productos_activos = [p for p in productos if p.activo]
+        promociones = stand.promociones.order_by(Promocion.activa.desc(), Promocion.created_at.desc()).all()
+        promociones_activas = [p for p in promociones if p.activa]
 
-    # Ventas
-    query = stand.ventas
-    if sesion:
-        query = query.filter_by(sesion_id=sesion.id)
-    ventas = query.order_by(Venta.created_at.desc()).all()
+        # Session filtering
+        sesion_id = request.args.get('sesion_id', type=int)
+        sesion = None
+        if sesion_id:
+            sesion = SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first()
 
-    ventas_por_dia = OrderedDict()
-    for v in ventas:
-        local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
-        dia = local_dt.strftime('%Y-%m-%d')
-        if dia not in ventas_por_dia:
-            ventas_por_dia[dia] = {'ventas': [], 'total': 0, 'count': 0}
-        ventas_por_dia[dia]['ventas'].append(v)
-        ventas_por_dia[dia]['total'] += v.total_final
-        ventas_por_dia[dia]['count'] += 1
+        # Ventas
+        query = stand.ventas
+        if sesion:
+            query = query.filter_by(sesion_id=sesion.id)
+        ventas = query.order_by(Venta.created_at.desc()).all()
 
-    promos_json = {p.producto_id: {'cantidad': p.cantidad, 'precio_promocion': p.precio_promocion, 'nombre': p.nombre}
-                   for p in promociones_activas if p.producto_id and p.cantidad and p.precio_promocion}
+        ventas_por_dia = OrderedDict()
+        for v in ventas:
+            local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
+            dia = local_dt.strftime('%Y-%m-%d')
+            if dia not in ventas_por_dia:
+                ventas_por_dia[dia] = {'ventas': [], 'total': 0, 'count': 0}
+            ventas_por_dia[dia]['ventas'].append(v)
+            ventas_por_dia[dia]['total'] += v.total_final
+            ventas_por_dia[dia]['count'] += 1
 
-    return render_template('ventas/control.html', stand=stand,
-                           productos=productos, productos_activos=productos_activos,
-                           promociones=promociones, promociones_activas=promociones_activas,
-                           promos_json=promos_json, ventas_por_dia=ventas_por_dia,
-                           sesion=sesion, sesion_id=sesion_id)
+        promos_json = {p.producto_id: {'cantidad': p.cantidad, 'precio_promocion': p.precio_promocion, 'nombre': p.nombre}
+                       for p in promociones_activas if p.producto_id and p.cantidad and p.precio_promocion}
+
+        return render_template('ventas/control.html', stand=stand,
+                               productos=productos, productos_activos=productos_activos,
+                               promociones=promociones, promociones_activas=promociones_activas,
+                               promos_json=promos_json, ventas_por_dia=ventas_por_dia,
+                               sesion=sesion, sesion_id=sesion_id)
+    except Exception as e:
+        import logging
+        logging.exception('Error al cargar panel de control')
+        flash(f'Error al cargar panel: {e}', 'danger')
+        return redirect(url_for('stand.dashboard', codigo=codigo))
 
 
 @ventas_bp.route('/<codigo>/ventas/<int:venta_id>/json')

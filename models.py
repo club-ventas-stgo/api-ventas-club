@@ -131,5 +131,6 @@ class SesionIntegrante(db.Model):
     sesion_id = db.Column(db.Integer, db.ForeignKey('sesiones_venta.id'), nullable=False)
     integrante_id = db.Column(db.Integer, db.ForeignKey('integrantes.id'), nullable=False)
     rol = db.Column(db.String(30), nullable=False)
+    comentario = db.Column(db.String(200), nullable=True)
 
     integrante = db.relationship('Integrante', lazy='select')

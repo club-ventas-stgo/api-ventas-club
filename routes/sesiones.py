@@ -76,7 +76,14 @@ def obtener_resumen_sesion(ventas):
 @sesiones_bp.route('/<codigo>/sesiones')
 def lista(codigo):
     stand = get_stand_or_404(codigo)
-    sesiones = stand.sesiones.order_by(SesionVenta.fecha.desc()).all()
+
+    try:
+        sesiones = stand.sesiones.order_by(SesionVenta.fecha.desc()).all()
+    except Exception as e:
+        import logging
+        logging.exception('Error al cargar sesiones')
+        flash(f'Error al cargar sesiones: {e}', 'danger')
+        return redirect(url_for('stand.dashboard', codigo=codigo))
 
     sesiones_data = []
     total_general = 0
@@ -112,30 +119,41 @@ def nueva(codigo):
     except ValueError:
         fecha = date.today()
 
-    sesion = SesionVenta(
-        stand_id=stand.id,
-        fecha=fecha,
-        nombre=nombre or None,
-        estado='programada'
-    )
-    db.session.add(sesion)
-    db.session.commit()
-    flash('Sesion creada.', 'success')
-    return redirect(url_for('sesiones.detalle', codigo=codigo, sesion_id=sesion.id))
+    try:
+        sesion = SesionVenta(
+            stand_id=stand.id,
+            fecha=fecha,
+            nombre=nombre or None,
+            estado='programada'
+        )
+        db.session.add(sesion)
+        db.session.commit()
+        flash('Sesion creada.', 'success')
+        return redirect(url_for('sesiones.detalle', codigo=codigo, sesion_id=sesion.id))
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.exception('Error al crear sesion')
+        flash(f'Error al crear la sesion: {e}', 'danger')
+        return redirect(url_for('sesiones.lista', codigo=codigo))
 
 
 @sesiones_bp.route('/<codigo>/sesiones/<int:sesion_id>')
 def detalle(codigo, sesion_id):
     stand = get_stand_or_404(codigo)
-    sesion = SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first_or_404()
-    ventas = sesion.ventas.order_by(Venta.created_at.desc()).all()
-    integrantes_disponibles = stand.integrantes.filter_by(activo=True).order_by(Integrante.nombre).all()
-
-    resumen = obtener_resumen_sesion(ventas)
-
-    return render_template('sesiones/detalle.html', stand=stand, sesion=sesion,
-                           resumen=resumen, integrantes_disponibles=integrantes_disponibles,
-                           formato_fecha_sesion=formato_fecha_sesion)
+    try:
+        sesion = SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first_or_404()
+        ventas = sesion.ventas.order_by(Venta.created_at.desc()).all()
+        integrantes_disponibles = stand.integrantes.filter_by(activo=True).order_by(Integrante.nombre).all()
+        resumen = obtener_resumen_sesion(ventas)
+        return render_template('sesiones/detalle.html', stand=stand, sesion=sesion,
+                               resumen=resumen, integrantes_disponibles=integrantes_disponibles,
+                               formato_fecha_sesion=formato_fecha_sesion)
+    except Exception as e:
+        import logging
+        logging.exception('Error al cargar detalle de sesion %s', sesion_id)
+        flash(f'Error al cargar sesion: {e}', 'danger')
+        return redirect(url_for('sesiones.lista', codigo=codigo))
 
 
 @sesiones_bp.route('/<codigo>/sesiones/<int:sesion_id>/estado', methods=['POST'])
@@ -144,10 +162,17 @@ def cambiar_estado(codigo, sesion_id):
     sesion = SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first_or_404()
     nuevo_estado = request.form.get('estado')
 
-    if nuevo_estado in ('programada', 'abierta', 'cerrada'):
-        sesion.estado = nuevo_estado
-        db.session.commit()
-        flash(f'Sesion {nuevo_estado}.', 'success')
+    try:
+        if nuevo_estado in ('programada', 'abierta', 'cerrada'):
+            sesion.estado = nuevo_estado
+            db.session.commit()
+            flash(f'Sesion {nuevo_estado}.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.exception('Error al cambiar estado de sesion')
+        flash(f'Error al cambiar estado: {e}', 'danger')
+        return redirect(url_for('sesiones.detalle', codigo=codigo, sesion_id=sesion.id))
 
     if sesion.estado == 'abierta':
         return redirect(url_for('ventas.control', codigo=codigo, sesion_id=sesion.id))
@@ -166,14 +191,20 @@ def nuevo_integrante(codigo, sesion_id):
         flash('El nombre es obligatorio.', 'danger')
         return redirect(url_for('sesiones.detalle', codigo=codigo, sesion_id=sesion.id))
 
-    integrante = Integrante(
-        stand_id=stand.id,
-        nombre=nombre,
-        telefono=telefono or None
-    )
-    db.session.add(integrante)
-    db.session.commit()
-    flash(f'Integrante "{nombre}" creado.', 'success')
+    try:
+        integrante = Integrante(
+            stand_id=stand.id,
+            nombre=nombre,
+            telefono=telefono or None
+        )
+        db.session.add(integrante)
+        db.session.commit()
+        flash(f'Integrante "{nombre}" creado.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.exception('Error al crear integrante')
+        flash(f'Error al crear integrante: {e}', 'danger')
     return redirect(url_for('sesiones.detalle', codigo=codigo, sesion_id=sesion.id))
 
 
@@ -182,25 +213,73 @@ def gestionar_integrantes(codigo, sesion_id):
     stand = get_stand_or_404(codigo)
     sesion = SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first_or_404()
 
-    # Remove existing assignments
-    SesionIntegrante.query.filter_by(sesion_id=sesion.id).delete()
+    try:
+        # Remove existing assignments
+        SesionIntegrante.query.filter_by(sesion_id=sesion.id).delete()
 
-    # Add new assignments from form
-    integrantes_disponibles = stand.integrantes.filter_by(activo=True).all()
-    for integrante in integrantes_disponibles:
-        roles = request.form.getlist(f'roles_{integrante.id}')
-        for rol in roles:
-            if rol in ('cocina', 'atencion', 'entrega'):
-                si = SesionIntegrante(
-                    sesion_id=sesion.id,
-                    integrante_id=integrante.id,
-                    rol=rol
-                )
-                db.session.add(si)
+        # Add new assignments from form
+        integrantes_disponibles = stand.integrantes.filter_by(activo=True).all()
+        for integrante in integrantes_disponibles:
+            roles = request.form.getlist(f'roles_{integrante.id}')
+            comentario = request.form.get(f'comentario_{integrante.id}', '').strip()
+            for rol in roles:
+                if rol in ('cocina', 'atencion', 'entrega'):
+                    si = SesionIntegrante(
+                        sesion_id=sesion.id,
+                        integrante_id=integrante.id,
+                        rol=rol,
+                        comentario=comentario or None
+                    )
+                    db.session.add(si)
 
-    db.session.commit()
-    flash('Roles actualizados.', 'success')
+        db.session.commit()
+        flash('Roles actualizados.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.exception('Error al gestionar integrantes')
+        flash(f'Error al actualizar roles: {e}', 'danger')
     return redirect(url_for('sesiones.detalle', codigo=codigo, sesion_id=sesion.id))
+
+
+@sesiones_bp.route('/<codigo>/sesiones/<int:sesion_id>/integrante/<int:integrante_id>/editar', methods=['POST'])
+def editar_integrante_sesion(codigo, sesion_id, integrante_id):
+    stand = get_stand_or_404(codigo)
+    SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first_or_404()
+    integrante = Integrante.query.filter_by(id=integrante_id, stand_id=stand.id).first_or_404()
+
+    nombre = request.form.get('nombre', '').strip()
+    telefono = request.form.get('telefono', '').strip()
+
+    try:
+        if nombre:
+            integrante.nombre = nombre
+        integrante.telefono = telefono or None
+        db.session.commit()
+        flash(f'Integrante "{integrante.nombre}" actualizado.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al editar integrante: {e}', 'danger')
+    return redirect(url_for('sesiones.detalle', codigo=codigo, sesion_id=sesion_id))
+
+
+@sesiones_bp.route('/<codigo>/sesiones/<int:sesion_id>/integrante/<int:integrante_id>/eliminar', methods=['POST'])
+def eliminar_integrante_sesion(codigo, sesion_id, integrante_id):
+    stand = get_stand_or_404(codigo)
+    SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first_or_404()
+    integrante = Integrante.query.filter_by(id=integrante_id, stand_id=stand.id).first_or_404()
+
+    try:
+        nombre = integrante.nombre
+        # Remove session assignments first
+        SesionIntegrante.query.filter_by(integrante_id=integrante.id).delete()
+        db.session.delete(integrante)
+        db.session.commit()
+        flash(f'Integrante "{nombre}" eliminado.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al eliminar integrante: {e}', 'danger')
+    return redirect(url_for('sesiones.detalle', codigo=codigo, sesion_id=sesion_id))
 
 
 @sesiones_bp.route('/<codigo>/sesiones/<int:sesion_id>/excel')
