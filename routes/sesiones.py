@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 from app import db
-from models import SesionVenta, SesionIntegrante, Integrante, Venta
+from models import SesionVenta, SesionIntegrante, Integrante, Venta, DetalleVenta
 from routes.stand import get_stand_or_404
 
 CHILE_TZ = ZoneInfo('America/Santiago')
@@ -479,3 +479,30 @@ def exportar_sesion_excel(codigo, sesion_id):
     filename = f"{stand.nombre}_Sesion_{fecha_str}.xlsx"
     return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                      as_attachment=True, download_name=filename)
+
+
+@sesiones_bp.route('/<codigo>/sesiones/<int:sesion_id>/eliminar', methods=['POST'])
+def eliminar_sesion(codigo, sesion_id):
+    """Elimina una sesion y todas sus ventas asociadas."""
+    stand = get_stand_or_404(codigo)
+    try:
+        sesion = SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first_or_404()
+        nombre = sesion.nombre or sesion.fecha.strftime('%d/%m/%Y')
+
+        # Delete children: detalles de ventas, ventas, integrantes de sesion
+        venta_ids = [v.id for v in Venta.query.filter_by(sesion_id=sesion.id).all()]
+        if venta_ids:
+            DetalleVenta.query.filter(DetalleVenta.venta_id.in_(venta_ids)).delete(synchronize_session=False)
+            Venta.query.filter(Venta.id.in_(venta_ids)).delete(synchronize_session=False)
+        SesionIntegrante.query.filter_by(sesion_id=sesion.id).delete(synchronize_session=False)
+        db.session.delete(sesion)
+        db.session.commit()
+
+        flash(f'Sesion "{nombre}" y sus {len(venta_ids)} ventas eliminadas.', 'success')
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        logging.exception('Error al eliminar sesion')
+        flash(f'Error al eliminar sesion: {e}', 'danger')
+    return redirect(url_for('sesiones.lista', codigo=codigo))

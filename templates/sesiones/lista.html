@@ -79,6 +79,10 @@
         <!-- Total recaudado -->
         <div class="text-end flex-shrink-0 ms-2">
             <div class="fw-bold text-success" style="font-size: 1.1rem;">${{ '{:,}'.format(s.total_recaudado) }}</div>
+            <button type="button" class="btn btn-sm btn-outline-danger" style="border-radius: 8px; font-size: 0.65rem; padding: 0.15rem 0.4rem;"
+                    onclick="event.stopPropagation(); document.getElementById('del-sesion-id').value='{{ s.sesion.id }}'; document.getElementById('del-sesion-nombre').textContent='{{ s.fecha_formato }}{% if s.sesion.nombre %} ({{ s.sesion.nombre }}){% endif %}'; document.getElementById('del-sesion-count').textContent='{{ s.total_ventas }}'; new bootstrap.Modal(document.getElementById('modal-eliminar-sesion')).show();">
+                <i class="bi bi-trash"></i>
+            </button>
         </div>
         <i class="bi bi-chevron-right text-muted ms-2"></i>
     </div>
@@ -126,4 +130,37 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Confirmar Eliminacion de Sesion -->
+<div class="modal fade" id="modal-eliminar-sesion" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle"></i> Eliminar Sesion</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="mb-1">Se eliminara la sesion</p>
+                <p class="fw-bold mb-1"><span id="del-sesion-nombre"></span></p>
+                <p class="mb-1">con sus <strong><span id="del-sesion-count"></span> ventas</strong>.</p>
+                <p class="small text-muted mb-0">Esta accion no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="border-radius: 10px;">Cancelar</button>
+                <form id="form-eliminar-sesion" method="POST">
+                    <input type="hidden" id="del-sesion-id" name="sesion_id" value="">
+                    <button type="submit" class="btn btn-danger btn-sm" style="border-radius: 10px;">
+                        <i class="bi bi-trash"></i> Eliminar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('modal-eliminar-sesion').addEventListener('show.bs.modal', function() {
+    var id = document.getElementById('del-sesion-id').value;
+    document.getElementById('form-eliminar-sesion').action = '/s/{{ stand.codigo_acceso }}/sesiones/' + id + '/eliminar';
+});
+</script>
 {% endblock %}

@@ -66,6 +66,9 @@
         </a>
         {% endif %}
         {% endif %}
+        <button type="button" class="btn btn-outline-danger btn-sm" style="border-radius: 10px;" data-bs-toggle="modal" data-bs-target="#modal-eliminar-sesion">
+            <i class="bi bi-trash"></i>
+        </button>
     </div>
 </div>
 
@@ -306,6 +309,31 @@
         <p class="text-muted mb-0 small">No hay ventas en esta sesion.</p>
     </div>
     {% endif %}
+</div>
+
+<!-- Modal Confirmar Eliminacion de Sesion -->
+<div class="modal fade" id="modal-eliminar-sesion" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle"></i> Eliminar Sesion</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="mb-1">Se eliminara la sesion del <strong>{{ sesion.fecha.strftime('%d/%m/%Y') }}</strong>{% if sesion.nombre %} ({{ sesion.nombre }}){% endif %}</p>
+                <p class="mb-1">con sus <strong>{{ resumen.total_ventas }} ventas</strong>.</p>
+                <p class="small text-muted mb-0">Esta accion no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="border-radius: 10px;">Cancelar</button>
+                <form method="POST" action="{{ url_for('sesiones.eliminar_sesion', codigo=stand.codigo_acceso, sesion_id=sesion.id) }}">
+                    <button type="submit" class="btn btn-danger btn-sm" style="border-radius: 10px;">
+                        <i class="bi bi-trash"></i> Eliminar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Modal asignar roles -->
