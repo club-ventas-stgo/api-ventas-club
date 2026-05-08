@@ -89,14 +89,41 @@ def create_app():
     def internal_error(e):
         import logging
         logging.exception('Internal Server Error: %s', e)
-        db.session.rollback()
-        return render_template('error.html', error_code=500,
-                               error_msg='Ocurrió un error interno. Por favor vuelve atrás e intenta de nuevo.'), 500
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        from flask import request, flash, redirect, jsonify
+        try:
+            # AJAX → JSON
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'error': 'Error interno del servidor.'}), 500
+            # Regular → redirect with flash
+            flash('Ocurrio un error interno. Por favor intenta de nuevo.', 'danger')
+            referrer = request.referrer
+            if referrer and referrer != request.url:
+                return redirect(referrer)
+            return redirect('/')
+        except Exception:
+            # Last resort - plain text response, never show raw HTML error
+            from flask import make_response
+            resp = make_response('Error interno. <a href="/">Volver al inicio</a>', 500)
+            resp.headers['Content-Type'] = 'text/html'
+            return resp
 
     @app.errorhandler(404)
     def not_found(e):
-        return render_template('error.html', error_code=404,
-                               error_msg='La página que buscas no existe.'), 404
+        from flask import request, jsonify
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'No encontrado.'}), 404
+        try:
+            return render_template('error.html', error_code=404,
+                                   error_msg='La pagina que buscas no existe.'), 404
+        except Exception:
+            from flask import make_response
+            resp = make_response('Pagina no encontrada. <a href="/">Volver al inicio</a>', 404)
+            resp.headers['Content-Type'] = 'text/html'
+            return resp
 
     with app.app_context():
         db.create_all()

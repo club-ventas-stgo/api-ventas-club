@@ -97,6 +97,30 @@ function searchVentas(query) {
     });
 }
 
+// Auto-refresh ventas every 8 seconds
+function refreshVentasAuto() {
+    if (document.getElementById('tab-content-ventas').classList.contains('d-none')) return;
+    fetch(`/s/${codigoStand}/ventas/partial`)
+        .then(r => r.text())
+        .then(html => {
+            document.getElementById('ventas-content').innerHTML = html;
+        })
+        .catch(() => {});
+}
+setInterval(refreshVentasAuto, 8000);
+
+// Also refresh registros when tab is active
+function refreshRegistrosAuto() {
+    if (document.getElementById('tab-content-registros').classList.contains('d-none')) return;
+    fetch(`/s/${codigoStand}/registros/partial`)
+        .then(r => r.text())
+        .then(html => {
+            document.getElementById('registros-content').innerHTML = html;
+        })
+        .catch(() => {});
+}
+setInterval(refreshRegistrosAuto, 15000);
+
 // Init tab from URL
 const urlTab = new URLSearchParams(window.location.search).get('tab');
 if (urlTab === 'registros') switchTab('registros');

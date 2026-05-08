@@ -1,8 +1,10 @@
 import json
+import logging
 from collections import OrderedDict
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from werkzeug.exceptions import HTTPException
 from app import db
 from models import Stand, Producto, Promocion, Venta, DetalleVenta, SesionVenta
 from routes.stand import get_stand_or_404
@@ -52,12 +54,28 @@ def get_or_create_session(stand_id):
     if sesion:
         if sesion.estado == 'programada':
             sesion.estado = 'abierta'
-            db.session.flush()
+            try:
+                db.session.flush()
+            except Exception:
+                db.session.rollback()
+                # Re-query after rollback (race condition: another request may have changed it)
+                sesion = SesionVenta.query.filter_by(stand_id=stand_id, fecha=hoy).first()
+                if sesion:
+                    return sesion.id
         return sesion.id
-    sesion = SesionVenta(stand_id=stand_id, fecha=hoy, estado='abierta')
-    db.session.add(sesion)
-    db.session.flush()
-    return sesion.id
+    # Create new session - handle race condition where another request creates it first
+    try:
+        sesion = SesionVenta(stand_id=stand_id, fecha=hoy, estado='abierta')
+        db.session.add(sesion)
+        db.session.flush()
+        return sesion.id
+    except Exception:
+        db.session.rollback()
+        # Another request likely created it, re-query
+        sesion = SesionVenta.query.filter_by(stand_id=stand_id, fecha=hoy).first()
+        if sesion:
+            return sesion.id
+        return None
 
 
 @ventas_bp.route('/<codigo>/panel')
@@ -65,57 +83,67 @@ def panel(codigo):
     stand = get_stand_or_404(codigo)
     tab = request.args.get('tab', 'ventas')
 
-    # Load ventas for the initial render
-    filtro_estado = request.args.get('estado_entrega', '')
-    filtro_pago = request.args.get('estado_pago', '')
-    query = stand.ventas
-    if filtro_estado:
-        query = query.filter_by(estado_entrega=filtro_estado)
-    if filtro_pago:
-        query = query.filter_by(estado_pago=filtro_pago)
-    ventas = query.order_by(Venta.created_at.desc()).all()
+    try:
+        # Load ventas for the initial render
+        filtro_estado = request.args.get('estado_entrega', '')
+        filtro_pago = request.args.get('estado_pago', '')
+        query = stand.ventas
+        if filtro_estado:
+            query = query.filter_by(estado_entrega=filtro_estado)
+        if filtro_pago:
+            query = query.filter_by(estado_pago=filtro_pago)
+        ventas = query.order_by(Venta.created_at.desc()).all()
 
-    ventas_por_dia = OrderedDict()
-    for v in ventas:
-        local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
-        dia = local_dt.strftime('%Y-%m-%d')
-        if dia not in ventas_por_dia:
-            ventas_por_dia[dia] = {'ventas': [], 'total': 0, 'count': 0}
-        ventas_por_dia[dia]['ventas'].append(v)
-        ventas_por_dia[dia]['total'] += v.total_final
-        ventas_por_dia[dia]['count'] += 1
+        ventas_por_dia = OrderedDict()
+        for v in ventas:
+            local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
+            dia = local_dt.strftime('%Y-%m-%d')
+            if dia not in ventas_por_dia:
+                ventas_por_dia[dia] = {'ventas': [], 'total': 0, 'count': 0}
+            ventas_por_dia[dia]['ventas'].append(v)
+            ventas_por_dia[dia]['total'] += v.total_final
+            ventas_por_dia[dia]['count'] += 1
 
-    return render_template('ventas/panel.html', stand=stand, tab=tab,
-                           ventas_por_dia=ventas_por_dia,
-                           filtro_estado=filtro_estado, filtro_pago=filtro_pago)
+        return render_template('ventas/panel.html', stand=stand, tab=tab,
+                               ventas_por_dia=ventas_por_dia,
+                               filtro_estado=filtro_estado, filtro_pago=filtro_pago)
+    except Exception as e:
+        logging.exception('Error al cargar panel')
+        flash(f'Error al cargar panel: {e}', 'danger')
+        return redirect(url_for('stand.dashboard', codigo=codigo))
 
 
 @ventas_bp.route('/<codigo>/ventas')
 def lista(codigo):
     stand = get_stand_or_404(codigo)
-    filtro_estado = request.args.get('estado_entrega', '')
-    filtro_pago = request.args.get('estado_pago', '')
+    try:
+        filtro_estado = request.args.get('estado_entrega', '')
+        filtro_pago = request.args.get('estado_pago', '')
 
-    query = stand.ventas
-    if filtro_estado:
-        query = query.filter_by(estado_entrega=filtro_estado)
-    if filtro_pago:
-        query = query.filter_by(estado_pago=filtro_pago)
+        query = stand.ventas
+        if filtro_estado:
+            query = query.filter_by(estado_entrega=filtro_estado)
+        if filtro_pago:
+            query = query.filter_by(estado_pago=filtro_pago)
 
-    ventas = query.order_by(Venta.created_at.desc()).all()
+        ventas = query.order_by(Venta.created_at.desc()).all()
 
-    ventas_por_dia = OrderedDict()
-    for v in ventas:
-        local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
-        dia = local_dt.strftime('%Y-%m-%d')
-        if dia not in ventas_por_dia:
-            ventas_por_dia[dia] = {'ventas': [], 'total': 0, 'count': 0}
-        ventas_por_dia[dia]['ventas'].append(v)
-        ventas_por_dia[dia]['total'] += v.total_final
-        ventas_por_dia[dia]['count'] += 1
+        ventas_por_dia = OrderedDict()
+        for v in ventas:
+            local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
+            dia = local_dt.strftime('%Y-%m-%d')
+            if dia not in ventas_por_dia:
+                ventas_por_dia[dia] = {'ventas': [], 'total': 0, 'count': 0}
+            ventas_por_dia[dia]['ventas'].append(v)
+            ventas_por_dia[dia]['total'] += v.total_final
+            ventas_por_dia[dia]['count'] += 1
 
-    return render_template('ventas/lista.html', stand=stand, ventas_por_dia=ventas_por_dia,
-                           filtro_estado=filtro_estado, filtro_pago=filtro_pago)
+        return render_template('ventas/lista.html', stand=stand, ventas_por_dia=ventas_por_dia,
+                               filtro_estado=filtro_estado, filtro_pago=filtro_pago)
+    except Exception as e:
+        logging.exception('Error al cargar ventas')
+        flash(f'Error al cargar ventas: {e}', 'danger')
+        return redirect(url_for('stand.dashboard', codigo=codigo))
 
 
 @ventas_bp.route('/<codigo>/ventas/nueva', methods=['GET', 'POST'])
@@ -144,7 +172,11 @@ def nueva(codigo):
             flash('Debe agregar al menos un producto.', 'danger')
             return redirect(url_for('ventas.nueva', codigo=codigo))
 
-        promos_activas = get_promos_activas_dict(stand.id)
+        try:
+            promos_activas = get_promos_activas_dict(stand.id)
+        except Exception:
+            promos_activas = {}
+
         detalles = []
         total_original = 0
 
@@ -178,8 +210,8 @@ def nueva(codigo):
 
         if not detalles:
             if is_ajax:
-                return jsonify({'success': False, 'error': 'No se encontraron productos válidos.'}), 400
-            flash('No se encontraron productos válidos.', 'danger')
+                return jsonify({'success': False, 'error': 'No se encontraron productos validos.'}), 400
+            flash('No se encontraron productos validos.', 'danger')
             return redirect(url_for('ventas.nueva', codigo=codigo))
 
         try:
@@ -189,7 +221,10 @@ def nueva(codigo):
 
         sesion_id = request.form.get('sesion_id', type=int)
         if not sesion_id:
-            sesion_id = get_or_create_session(stand.id)
+            try:
+                sesion_id = get_or_create_session(stand.id)
+            except Exception:
+                sesion_id = None
 
         try:
             venta = Venta(
@@ -238,114 +273,159 @@ def nueva(codigo):
 @ventas_bp.route('/<codigo>/ventas/<int:venta_id>', methods=['GET', 'POST'])
 def detalle(codigo, venta_id):
     stand = get_stand_or_404(codigo)
-    venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
+    try:
+        venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
 
-    if request.method == 'POST':
-        estado_pago = request.form.get('estado_pago', venta.estado_pago)
-        monto_pagado = request.form.get('monto_pagado', str(venta.monto_pagado))
-        estado_entrega = request.form.get('estado_entrega', venta.estado_entrega)
-        total_final = request.form.get('total_final', str(venta.total_final))
-        notas = request.form.get('notas', venta.notas or '')
+        if request.method == 'POST':
+            estado_pago = request.form.get('estado_pago', venta.estado_pago)
+            monto_pagado = request.form.get('monto_pagado', str(venta.monto_pagado))
+            estado_entrega = request.form.get('estado_entrega', venta.estado_entrega)
+            total_final = request.form.get('total_final', str(venta.total_final))
+            notas = request.form.get('notas', venta.notas or '')
 
-        venta.estado_pago = estado_pago
-        venta.estado_entrega = estado_entrega
-        venta.notas = notas.strip()
+            venta.estado_pago = estado_pago
+            venta.estado_entrega = estado_entrega
+            venta.notas = notas.strip()
 
-        try:
-            venta.monto_pagado = int(monto_pagado)
-        except ValueError:
-            pass
+            try:
+                venta.monto_pagado = int(monto_pagado)
+            except ValueError:
+                pass
 
-        try:
-            venta.total_final = int(total_final)
-        except ValueError:
-            pass
+            try:
+                venta.total_final = int(total_final)
+            except ValueError:
+                pass
 
-        db.session.commit()
-        flash('Venta actualizada.', 'success')
-        return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+            db.session.commit()
+            flash('Venta actualizada.', 'success')
+            return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
 
-    return render_template('ventas/detalle.html', stand=stand, venta=venta)
+        return render_template('ventas/detalle.html', stand=stand, venta=venta)
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        logging.exception('Error en detalle de venta')
+        flash(f'Error: {e}', 'danger')
+        return redirect(url_for('stand.dashboard', codigo=codigo))
 
 
 @ventas_bp.route('/<codigo>/ventas/<int:venta_id>/estado', methods=['POST'])
 def cambiar_estado(codigo, venta_id):
     stand = get_stand_or_404(codigo)
-    venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    try:
+        venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
 
-    nuevo_estado = request.form.get('estado_entrega')
-    if nuevo_estado in ('pendiente', 'listo', 'entregado'):
-        venta.estado_entrega = nuevo_estado
-        db.session.commit()
+        nuevo_estado = request.form.get('estado_entrega')
+        if nuevo_estado in ('pendiente', 'listo', 'entregado'):
+            venta.estado_entrega = nuevo_estado
+            db.session.commit()
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({'success': True, 'estado_entrega': venta.estado_entrega})
+        if is_ajax:
+            return jsonify({'success': True, 'estado_entrega': venta.estado_entrega})
 
-    referer = request.form.get('redirect', '')
-    if 'cocina' in referer:
-        return redirect(url_for('cocina.panel', codigo=codigo))
-    return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+        referer = request.form.get('redirect', '')
+        if 'cocina' in referer:
+            return redirect(url_for('cocina.panel', codigo=codigo))
+        return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        logging.exception('Error al cambiar estado de venta')
+        if is_ajax:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        flash(f'Error al cambiar estado: {e}', 'danger')
+        return redirect(url_for('stand.dashboard', codigo=codigo))
 
 
 @ventas_bp.route('/<codigo>/ventas/<int:venta_id>/marcar-pagado', methods=['POST'])
 def marcar_pagado(codigo, venta_id):
     stand = get_stand_or_404(codigo)
-    venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
-    venta.monto_pagado = venta.total_final
-    venta.estado_pago = 'pagado'
-    db.session.commit()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    try:
+        venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
+        venta.monto_pagado = venta.total_final
+        venta.estado_pago = 'pagado'
+        db.session.commit()
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({'success': True, 'estado_pago': venta.estado_pago, 'monto_pagado': venta.monto_pagado})
+        if is_ajax:
+            return jsonify({'success': True, 'estado_pago': venta.estado_pago, 'monto_pagado': venta.monto_pagado})
 
-    flash('Venta marcada como pagada.', 'success')
-    return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+        flash('Venta marcada como pagada.', 'success')
+        return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        logging.exception('Error al marcar pagado')
+        if is_ajax:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        flash(f'Error al marcar pagado: {e}', 'danger')
+        return redirect(url_for('stand.dashboard', codigo=codigo))
 
 
 @ventas_bp.route('/<codigo>/ventas/<int:venta_id>/marcar-entregado', methods=['POST'])
 def marcar_entregado(codigo, venta_id):
     stand = get_stand_or_404(codigo)
-    venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
-    venta.estado_entrega = 'entregado'
-    db.session.commit()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    try:
+        venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
+        venta.estado_entrega = 'entregado'
+        db.session.commit()
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({'success': True, 'estado_entrega': venta.estado_entrega})
+        if is_ajax:
+            return jsonify({'success': True, 'estado_entrega': venta.estado_entrega})
 
-    flash('Venta marcada como entregada.', 'success')
-    return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+        flash('Venta marcada como entregada.', 'success')
+        return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        logging.exception('Error al marcar entregado')
+        if is_ajax:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        flash(f'Error al marcar entregado: {e}', 'danger')
+        return redirect(url_for('stand.dashboard', codigo=codigo))
 
 
 @ventas_bp.route('/<codigo>/ventas/partial')
 def lista_partial(codigo):
     stand = get_stand_or_404(codigo)
-    filtro_estado = request.args.get('estado_entrega', '')
-    filtro_pago = request.args.get('estado_pago', '')
-    sesion_id = request.args.get('sesion_id', type=int)
+    try:
+        filtro_estado = request.args.get('estado_entrega', '')
+        filtro_pago = request.args.get('estado_pago', '')
+        sesion_id = request.args.get('sesion_id', type=int)
 
-    query = stand.ventas
-    if sesion_id:
-        query = query.filter_by(sesion_id=sesion_id)
-    if filtro_estado:
-        query = query.filter_by(estado_entrega=filtro_estado)
-    if filtro_pago:
-        query = query.filter_by(estado_pago=filtro_pago)
+        query = stand.ventas
+        if sesion_id:
+            query = query.filter_by(sesion_id=sesion_id)
+        if filtro_estado:
+            query = query.filter_by(estado_entrega=filtro_estado)
+        if filtro_pago:
+            query = query.filter_by(estado_pago=filtro_pago)
 
-    ventas = query.order_by(Venta.created_at.desc()).all()
+        ventas = query.order_by(Venta.created_at.desc()).all()
 
-    ventas_por_dia = OrderedDict()
-    for v in ventas:
-        local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
-        dia = local_dt.strftime('%Y-%m-%d')
-        if dia not in ventas_por_dia:
-            ventas_por_dia[dia] = {'ventas': [], 'total': 0, 'count': 0}
-        ventas_por_dia[dia]['ventas'].append(v)
-        ventas_por_dia[dia]['total'] += v.total_final
-        ventas_por_dia[dia]['count'] += 1
+        ventas_por_dia = OrderedDict()
+        for v in ventas:
+            local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
+            dia = local_dt.strftime('%Y-%m-%d')
+            if dia not in ventas_por_dia:
+                ventas_por_dia[dia] = {'ventas': [], 'total': 0, 'count': 0}
+            ventas_por_dia[dia]['ventas'].append(v)
+            ventas_por_dia[dia]['total'] += v.total_final
+            ventas_por_dia[dia]['count'] += 1
 
-    tpl = 'ventas/_ventas_cards.html' if request.args.get('cards') else 'ventas/_ventas_partial.html'
-    return render_template(tpl, stand=stand, ventas_por_dia=ventas_por_dia,
-                           filtro_estado=filtro_estado, filtro_pago=filtro_pago)
+        tpl = 'ventas/_ventas_cards.html' if request.args.get('cards') else 'ventas/_ventas_partial.html'
+        return render_template(tpl, stand=stand, ventas_por_dia=ventas_por_dia,
+                               filtro_estado=filtro_estado, filtro_pago=filtro_pago)
+    except Exception as e:
+        logging.exception('Error al cargar ventas partial')
+        return f'<div class="alert alert-danger">Error al cargar ventas: {e}</div>'
 
 
 @ventas_bp.route('/<codigo>/ventas/<int:venta_id>/editar', methods=['GET', 'POST'])
@@ -376,7 +456,10 @@ def editar_venta(codigo, venta_id):
             return redirect(url_for('ventas.editar_venta', codigo=codigo, venta_id=venta_id))
 
         # Validate new items BEFORE deleting old ones
-        promos_activas = get_promos_activas_dict(stand.id)
+        try:
+            promos_activas = get_promos_activas_dict(stand.id)
+        except Exception:
+            promos_activas = {}
         detalles = []
         total_original = 0
         for item in items:
@@ -441,25 +524,34 @@ def editar_venta(codigo, venta_id):
         flash(f'Venta #{venta.numero_orden} actualizada.', 'success')
         return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
 
-    productos = stand.productos.filter_by(activo=True).order_by(Producto.nombre).all()
-    promociones = stand.promociones.filter_by(activa=True).all()
-    promos_json = {p.producto_id: {'cantidad': p.cantidad, 'precio_promocion': p.precio_promocion, 'nombre': p.nombre}
-                   for p in promociones if p.producto_id and p.cantidad and p.precio_promocion}
-    return render_template('ventas/editar.html', stand=stand, venta=venta, productos=productos, promos_json=promos_json)
+    try:
+        productos = stand.productos.filter_by(activo=True).order_by(Producto.nombre).all()
+        promociones = stand.promociones.filter_by(activa=True).all()
+        promos_json = {p.producto_id: {'cantidad': p.cantidad, 'precio_promocion': p.precio_promocion, 'nombre': p.nombre}
+                       for p in promociones if p.producto_id and p.cantidad and p.precio_promocion}
+        return render_template('ventas/editar.html', stand=stand, venta=venta, productos=productos, promos_json=promos_json)
+    except Exception as e:
+        logging.exception('Error al cargar editor de venta')
+        flash(f'Error al cargar editor: {e}', 'danger')
+        return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta_id))
 
 
 @ventas_bp.route('/<codigo>/stock')
 def stock_api(codigo):
     """API: returns current stock for all products with stock limits."""
     stand = get_stand_or_404(codigo)
-    productos = stand.productos.filter(Producto.stock.isnot(None), Producto.activo == True).all()
-    return jsonify([{
-        'id': p.id,
-        'nombre': p.nombre,
-        'stock': p.stock,
-        'vendido': p.stock_vendido,
-        'disponible': p.stock_disponible,
-    } for p in productos])
+    try:
+        productos = stand.productos.filter(Producto.stock.isnot(None), Producto.activo == True).all()
+        return jsonify([{
+            'id': p.id,
+            'nombre': p.nombre,
+            'stock': p.stock,
+            'vendido': p.stock_vendido,
+            'disponible': p.stock_disponible,
+        } for p in productos])
+    except Exception as e:
+        logging.exception('Error al cargar stock')
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @ventas_bp.route('/<codigo>/ventas/buscar')
@@ -472,30 +564,34 @@ def buscar(codigo):
     if not q:
         return jsonify([])
 
-    filters = [
-        Venta.stand_id == stand.id,
-        db.or_(
-            Venta.cliente_nombre.ilike(f'%{q}%'),
-            Venta.numero_orden == (int(q) if q.isdigit() else -1)
-        )
-    ]
-    if sesion_id:
-        filters.append(Venta.sesion_id == sesion_id)
+    try:
+        filters = [
+            Venta.stand_id == stand.id,
+            db.or_(
+                Venta.cliente_nombre.ilike(f'%{q}%'),
+                Venta.numero_orden == (int(q) if q.isdigit() else -1)
+            )
+        ]
+        if sesion_id:
+            filters.append(Venta.sesion_id == sesion_id)
 
-    ventas = Venta.query.filter(*filters).order_by(Venta.created_at.desc()).limit(20).all()
+        ventas = Venta.query.filter(*filters).order_by(Venta.created_at.desc()).limit(20).all()
 
-    results = [{
-        'id': v.id,
-        'numero_orden': v.numero_orden,
-        'cliente_nombre': v.cliente_nombre or '',
-        'total_final': v.total_final,
-        'estado_entrega': v.estado_entrega,
-        'estado_pago': v.estado_pago,
-        'created_at': v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ).strftime('%d/%m %H:%M'),
-        'detalles': [{'nombre': d.nombre_producto, 'cantidad': d.cantidad, 'precio_unitario': d.precio_unitario, 'subtotal': d.subtotal, 'promocion_texto': d.promocion_texto} for d in v.detalles]
-    } for v in ventas]
+        results = [{
+            'id': v.id,
+            'numero_orden': v.numero_orden,
+            'cliente_nombre': v.cliente_nombre or '',
+            'total_final': v.total_final,
+            'estado_entrega': v.estado_entrega,
+            'estado_pago': v.estado_pago,
+            'created_at': v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ).strftime('%d/%m %H:%M'),
+            'detalles': [{'nombre': d.nombre_producto, 'cantidad': d.cantidad, 'precio_unitario': d.precio_unitario, 'subtotal': d.subtotal, 'promocion_texto': d.promocion_texto} for d in v.detalles]
+        } for v in ventas]
 
-    return jsonify(results)
+        return jsonify(results)
+    except Exception as e:
+        logging.exception('Error al buscar ventas')
+        return jsonify([]), 500
 
 
 @ventas_bp.route('/<codigo>/ventas/clientes')
@@ -505,52 +601,66 @@ def clientes(codigo):
     q = request.args.get('q', '').strip()
     if not q or len(q) < 2:
         return jsonify([])
-    nombres = db.session.query(Venta.cliente_nombre).filter(
-        Venta.stand_id == stand.id,
-        Venta.cliente_nombre.isnot(None),
-        Venta.cliente_nombre != '',
-        Venta.cliente_nombre.ilike(f'%{q}%')
-    ).distinct().limit(6).all()
-    return jsonify([n[0] for n in nombres if n[0]])
+    try:
+        nombres = db.session.query(Venta.cliente_nombre).filter(
+            Venta.stand_id == stand.id,
+            Venta.cliente_nombre.isnot(None),
+            Venta.cliente_nombre != '',
+            Venta.cliente_nombre.ilike(f'%{q}%')
+        ).distinct().limit(6).all()
+        return jsonify([n[0] for n in nombres if n[0]])
+    except Exception:
+        return jsonify([]), 500
 
 
 @ventas_bp.route('/<codigo>/ventas/<int:venta_id>/pago', methods=['POST'])
 def actualizar_pago(codigo, venta_id):
     """API endpoint for inline payment updates."""
     stand = get_stand_or_404(codigo)
-    venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
-
-    metodo_pago = request.form.get('metodo_pago', venta.metodo_pago)
-    monto_efectivo = request.form.get('monto_efectivo', '0')
-    monto_transferencia = request.form.get('monto_transferencia', '0')
-
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     try:
-        monto_ef = int(monto_efectivo)
-    except (ValueError, TypeError):
-        monto_ef = 0
-    try:
-        monto_tr = int(monto_transferencia)
-    except (ValueError, TypeError):
-        monto_tr = 0
+        venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
 
-    total_pagado = monto_ef + monto_tr
-    venta.monto_pagado = total_pagado
-    venta.metodo_pago = metodo_pago
+        metodo_pago = request.form.get('metodo_pago', venta.metodo_pago)
+        monto_efectivo = request.form.get('monto_efectivo', '0')
+        monto_transferencia = request.form.get('monto_transferencia', '0')
 
-    if total_pagado >= venta.total_final:
-        venta.estado_pago = 'pagado'
-    elif total_pagado > 0:
-        venta.estado_pago = 'parcial'
-    else:
-        venta.estado_pago = 'pendiente'
+        try:
+            monto_ef = int(monto_efectivo)
+        except (ValueError, TypeError):
+            monto_ef = 0
+        try:
+            monto_tr = int(monto_transferencia)
+        except (ValueError, TypeError):
+            monto_tr = 0
 
-    db.session.commit()
+        total_pagado = monto_ef + monto_tr
+        venta.monto_pagado = total_pagado
+        venta.metodo_pago = metodo_pago
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({'success': True, 'estado_pago': venta.estado_pago, 'monto_pagado': venta.monto_pagado})
+        if total_pagado >= venta.total_final:
+            venta.estado_pago = 'pagado'
+        elif total_pagado > 0:
+            venta.estado_pago = 'parcial'
+        else:
+            venta.estado_pago = 'pendiente'
 
-    flash('Pago actualizado.', 'success')
-    return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+        db.session.commit()
+
+        if is_ajax:
+            return jsonify({'success': True, 'estado_pago': venta.estado_pago, 'monto_pagado': venta.monto_pagado})
+
+        flash('Pago actualizado.', 'success')
+        return redirect(url_for('ventas.detalle', codigo=codigo, venta_id=venta.id))
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        logging.exception('Error al actualizar pago')
+        if is_ajax:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        flash(f'Error al actualizar pago: {e}', 'danger')
+        return redirect(url_for('stand.dashboard', codigo=codigo))
 
 
 @ventas_bp.route('/<codigo>/control')
@@ -595,7 +705,6 @@ def control(codigo):
                                promos_json=promos_json, ventas_por_dia=ventas_por_dia,
                                sesion=sesion, sesion_id=sesion_id)
     except Exception as e:
-        import logging
         logging.exception('Error al cargar panel de control')
         flash(f'Error al cargar panel: {e}', 'danger')
         return redirect(url_for('stand.dashboard', codigo=codigo))
@@ -605,25 +714,31 @@ def control(codigo):
 def venta_json(codigo, venta_id):
     """Return full sale detail as JSON for inline expand."""
     stand = get_stand_or_404(codigo)
-    venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
+    try:
+        venta = Venta.query.filter_by(id=venta_id, stand_id=stand.id).first_or_404()
 
-    return jsonify({
-        'id': venta.id,
-        'numero_orden': venta.numero_orden,
-        'cliente_nombre': venta.cliente_nombre or '',
-        'metodo_pago': venta.metodo_pago,
-        'estado_pago': venta.estado_pago,
-        'monto_pagado': venta.monto_pagado,
-        'total_original': venta.total_original,
-        'total_final': venta.total_final,
-        'estado_entrega': venta.estado_entrega,
-        'notas': venta.notas or '',
-        'created_at': venta.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ).strftime('%d/%m/%Y %H:%M'),
-        'detalles': [{
-            'nombre_producto': d.nombre_producto,
-            'cantidad': d.cantidad,
-            'precio_unitario': d.precio_unitario,
-            'subtotal': d.subtotal,
-            'promocion_texto': d.promocion_texto
-        } for d in venta.detalles]
-    })
+        return jsonify({
+            'id': venta.id,
+            'numero_orden': venta.numero_orden,
+            'cliente_nombre': venta.cliente_nombre or '',
+            'metodo_pago': venta.metodo_pago,
+            'estado_pago': venta.estado_pago,
+            'monto_pagado': venta.monto_pagado,
+            'total_original': venta.total_original,
+            'total_final': venta.total_final,
+            'estado_entrega': venta.estado_entrega,
+            'notas': venta.notas or '',
+            'created_at': venta.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ).strftime('%d/%m/%Y %H:%M'),
+            'detalles': [{
+                'nombre_producto': d.nombre_producto,
+                'cantidad': d.cantidad,
+                'precio_unitario': d.precio_unitario,
+                'subtotal': d.subtotal,
+                'promocion_texto': d.promocion_texto
+            } for d in venta.detalles]
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception('Error al cargar venta JSON')
+        return jsonify({'success': False, 'error': str(e)}), 500

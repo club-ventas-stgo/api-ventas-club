@@ -114,5 +114,33 @@
 document.querySelectorAll('.day-group-header').forEach(h => {
     h.addEventListener('click', function() { this.classList.toggle('collapsed'); });
 });
+
+// Auto-refresh ventas list every 10 seconds
+const codigoStand = "{{ stand.codigo_acceso }}";
+setInterval(function() {
+    const params = new URLSearchParams(window.location.search).toString();
+    fetch(`/s/${codigoStand}/ventas/partial${params ? '?' + params : ''}`)
+        .then(r => r.text())
+        .then(html => {
+            const container = document.querySelector('.day-group, .tile.text-center');
+            if (container) {
+                const parent = container.parentNode;
+                // Remove all day-groups and empty-state
+                parent.querySelectorAll('.day-group, .tile.text-center').forEach(el => el.remove());
+                // Insert the new HTML before the FAB
+                const fab = parent.querySelector('.fab');
+                const temp = document.createElement('div');
+                temp.innerHTML = html;
+                while (temp.firstChild) {
+                    parent.insertBefore(temp.firstChild, fab);
+                }
+                // Re-attach collapse handlers
+                parent.querySelectorAll('.day-group-header').forEach(h => {
+                    h.addEventListener('click', function() { this.classList.toggle('collapsed'); });
+                });
+            }
+        })
+        .catch(() => {});
+}, 10000);
 </script>
 {% endblock %}

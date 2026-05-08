@@ -1,3 +1,4 @@
+import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
 from sqlalchemy import func
 from app import db
@@ -59,29 +60,38 @@ def dashboard(codigo):
 @stand_bp.route('/<codigo>/editar', methods=['POST'])
 def editar_stand(codigo):
     stand = get_stand_or_404(codigo)
-    nombre = request.form.get('nombre', '').strip()
-    if nombre:
-        stand.nombre = nombre
-    if 'foto' in request.files and request.files['foto'].filename:
-        try:
-            stand.foto = comprimir_imagen(request.files['foto'])
-        except Exception:
-            flash('Error al procesar la imagen.', 'danger')
-            return redirect(url_for('stand.dashboard', codigo=codigo))
-    if request.form.get('quitar_foto') == '1':
-        stand.foto = None
-    db.session.commit()
-    flash('Stand actualizado.', 'success')
+    try:
+        nombre = request.form.get('nombre', '').strip()
+        if nombre:
+            stand.nombre = nombre
+        if 'foto' in request.files and request.files['foto'].filename:
+            try:
+                stand.foto = comprimir_imagen(request.files['foto'])
+            except Exception:
+                flash('Error al procesar la imagen.', 'danger')
+                return redirect(url_for('stand.dashboard', codigo=codigo))
+        if request.form.get('quitar_foto') == '1':
+            stand.foto = None
+        db.session.commit()
+        flash('Stand actualizado.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al actualizar stand: {e}', 'danger')
     return redirect(url_for('stand.dashboard', codigo=codigo))
 
 
 @stand_bp.route('/<codigo>/eliminar', methods=['POST'])
 def eliminar_stand(codigo):
     stand = get_stand_or_404(codigo)
-    stand.activo = False
-    db.session.commit()
-    flash(f'Stand "{stand.nombre}" eliminado.', 'info')
-    return redirect(url_for('main.index'))
+    try:
+        stand.activo = False
+        db.session.commit()
+        flash(f'Stand "{stand.nombre}" eliminado.', 'info')
+        return redirect(url_for('main.index'))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al eliminar stand: {e}', 'danger')
+        return redirect(url_for('stand.dashboard', codigo=codigo))
 
 
 @stand_bp.route('/<codigo>/productos', methods=['GET', 'POST'])
@@ -148,76 +158,100 @@ def productos(codigo):
 @stand_bp.route('/<codigo>/productos/<int:producto_id>/editar', methods=['POST'])
 def editar_producto(codigo, producto_id):
     stand = get_stand_or_404(codigo)
-    producto = Producto.query.filter_by(id=producto_id, stand_id=stand.id).first_or_404()
-
-    nombre = request.form.get('nombre', '').strip()
-    precio = request.form.get('precio', '0')
-
-    if nombre:
-        producto.nombre = nombre
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     try:
-        producto.precio = int(precio)
-    except ValueError:
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': False, 'error': 'El precio debe ser un número entero.'}), 400
-        flash('El precio debe ser un número entero.', 'danger')
-        return redirect(url_for('stand.productos', codigo=codigo))
+        producto = Producto.query.filter_by(id=producto_id, stand_id=stand.id).first_or_404()
 
-    stock = request.form.get('stock', '').strip()
-    if stock == '':
-        producto.stock = None
-    else:
+        nombre = request.form.get('nombre', '').strip()
+        precio = request.form.get('precio', '0')
+
+        if nombre:
+            producto.nombre = nombre
         try:
-            producto.stock = int(stock)
+            producto.precio = int(precio)
         except ValueError:
-            pass
-
-    if 'foto' in request.files and request.files['foto'].filename:
-        try:
-            producto.foto = comprimir_imagen(request.files['foto'])
-        except Exception:
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'success': False, 'error': 'Error al procesar la imagen.'}), 500
-            flash('Error al procesar la imagen.', 'danger')
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'El precio debe ser un número entero.'}), 400
+            flash('El precio debe ser un número entero.', 'danger')
             return redirect(url_for('stand.productos', codigo=codigo))
 
-    db.session.commit()
+        stock = request.form.get('stock', '').strip()
+        if stock == '':
+            producto.stock = None
+        else:
+            try:
+                producto.stock = int(stock)
+            except ValueError:
+                pass
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({'success': True})
+        if 'foto' in request.files and request.files['foto'].filename:
+            try:
+                producto.foto = comprimir_imagen(request.files['foto'])
+            except Exception:
+                if is_ajax:
+                    return jsonify({'success': False, 'error': 'Error al procesar la imagen.'}), 500
+                flash('Error al procesar la imagen.', 'danger')
+                return redirect(url_for('stand.productos', codigo=codigo))
 
-    flash(f'Producto "{producto.nombre}" actualizado.', 'success')
-    return redirect(url_for('stand.productos', codigo=codigo))
+        db.session.commit()
+
+        if is_ajax:
+            return jsonify({'success': True})
+
+        flash(f'Producto "{producto.nombre}" actualizado.', 'success')
+        return redirect(url_for('stand.productos', codigo=codigo))
+    except Exception as e:
+        db.session.rollback()
+        if is_ajax:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        flash(f'Error al editar producto: {e}', 'danger')
+        return redirect(url_for('stand.productos', codigo=codigo))
 
 
 @stand_bp.route('/<codigo>/productos/<int:producto_id>/toggle', methods=['POST'])
 def toggle_producto(codigo, producto_id):
     stand = get_stand_or_404(codigo)
-    producto = Producto.query.filter_by(id=producto_id, stand_id=stand.id).first_or_404()
-    producto.activo = not producto.activo
-    db.session.commit()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    try:
+        producto = Producto.query.filter_by(id=producto_id, stand_id=stand.id).first_or_404()
+        producto.activo = not producto.activo
+        db.session.commit()
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({'success': True, 'activo': producto.activo})
+        if is_ajax:
+            return jsonify({'success': True, 'activo': producto.activo})
 
-    estado = "activado" if producto.activo else "desactivado"
-    flash(f'Producto "{producto.nombre}" {estado}.', 'info')
-    return redirect(url_for('stand.productos', codigo=codigo))
+        estado = "activado" if producto.activo else "desactivado"
+        flash(f'Producto "{producto.nombre}" {estado}.', 'info')
+        return redirect(url_for('stand.productos', codigo=codigo))
+    except Exception as e:
+        db.session.rollback()
+        if is_ajax:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        flash(f'Error: {e}', 'danger')
+        return redirect(url_for('stand.productos', codigo=codigo))
 
 
 @stand_bp.route('/<codigo>/productos/<int:producto_id>/eliminar', methods=['POST'])
 def eliminar_producto(codigo, producto_id):
     stand = get_stand_or_404(codigo)
-    producto = Producto.query.filter_by(id=producto_id, stand_id=stand.id).first_or_404()
-    nombre = producto.nombre
-    db.session.delete(producto)
-    db.session.commit()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    try:
+        producto = Producto.query.filter_by(id=producto_id, stand_id=stand.id).first_or_404()
+        nombre = producto.nombre
+        db.session.delete(producto)
+        db.session.commit()
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({'success': True})
+        if is_ajax:
+            return jsonify({'success': True})
 
-    flash(f'Producto "{nombre}" eliminado.', 'info')
-    return redirect(url_for('stand.productos', codigo=codigo))
+        flash(f'Producto "{nombre}" eliminado.', 'info')
+        return redirect(url_for('stand.productos', codigo=codigo))
+    except Exception as e:
+        db.session.rollback()
+        if is_ajax:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        flash(f'Error al eliminar producto: {e}', 'danger')
+        return redirect(url_for('stand.productos', codigo=codigo))
 
 
 @stand_bp.route('/<codigo>/promociones', methods=['GET', 'POST'])
@@ -283,47 +317,71 @@ def promociones(codigo):
 @stand_bp.route('/<codigo>/promociones/<int:promo_id>/toggle', methods=['POST'])
 def toggle_promocion(codigo, promo_id):
     stand = get_stand_or_404(codigo)
-    promo = Promocion.query.filter_by(id=promo_id, stand_id=stand.id).first_or_404()
-    promo.activa = not promo.activa
-    db.session.commit()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    try:
+        promo = Promocion.query.filter_by(id=promo_id, stand_id=stand.id).first_or_404()
+        promo.activa = not promo.activa
+        db.session.commit()
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({'success': True, 'activa': promo.activa})
+        if is_ajax:
+            return jsonify({'success': True, 'activa': promo.activa})
 
-    estado = "activada" if promo.activa else "desactivada"
-    flash(f'Promoción "{promo.nombre}" {estado}.', 'info')
-    return redirect(url_for('stand.promociones', codigo=codigo))
+        estado = "activada" if promo.activa else "desactivada"
+        flash(f'Promoción "{promo.nombre}" {estado}.', 'info')
+        return redirect(url_for('stand.promociones', codigo=codigo))
+    except Exception as e:
+        db.session.rollback()
+        if is_ajax:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        flash(f'Error: {e}', 'danger')
+        return redirect(url_for('stand.promociones', codigo=codigo))
 
 
 @stand_bp.route('/<codigo>/promociones/<int:promo_id>/eliminar', methods=['POST'])
 def eliminar_promocion(codigo, promo_id):
     stand = get_stand_or_404(codigo)
-    promo = Promocion.query.filter_by(id=promo_id, stand_id=stand.id).first_or_404()
-    db.session.delete(promo)
-    db.session.commit()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    try:
+        promo = Promocion.query.filter_by(id=promo_id, stand_id=stand.id).first_or_404()
+        db.session.delete(promo)
+        db.session.commit()
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({'success': True})
+        if is_ajax:
+            return jsonify({'success': True})
 
-    flash(f'Promoción eliminada.', 'info')
-    return redirect(url_for('stand.promociones', codigo=codigo))
+        flash(f'Promoción eliminada.', 'info')
+        return redirect(url_for('stand.promociones', codigo=codigo))
+    except Exception as e:
+        db.session.rollback()
+        if is_ajax:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        flash(f'Error al eliminar promoción: {e}', 'danger')
+        return redirect(url_for('stand.promociones', codigo=codigo))
 
 
 @stand_bp.route('/<codigo>/productos/partial')
 def productos_partial(codigo):
     """Return partial HTML for products list (AJAX refresh)."""
     stand = get_stand_or_404(codigo)
-    todos = stand.productos.order_by(Producto.activo.desc(), Producto.created_at.desc()).all()
-    return render_template('stand/_productos_partial.html', stand=stand, productos=todos)
+    try:
+        todos = stand.productos.order_by(Producto.activo.desc(), Producto.created_at.desc()).all()
+        return render_template('stand/_productos_partial.html', stand=stand, productos=todos)
+    except Exception as e:
+        logging.exception('Error al cargar productos partial')
+        return f'<div class="alert alert-danger">Error al cargar productos: {e}</div>'
 
 
 @stand_bp.route('/<codigo>/promociones/partial')
 def promociones_partial(codigo):
     """Return partial HTML for promotions list (AJAX refresh)."""
     stand = get_stand_or_404(codigo)
-    todas = stand.promociones.order_by(Promocion.activa.desc(), Promocion.created_at.desc()).all()
-    productos_activos = stand.productos.filter_by(activo=True).order_by(Producto.nombre).all()
-    return render_template('stand/_promociones_partial.html', stand=stand, promociones=todas, productos=productos_activos)
+    try:
+        todas = stand.promociones.order_by(Promocion.activa.desc(), Promocion.created_at.desc()).all()
+        productos_activos = stand.productos.filter_by(activo=True).order_by(Producto.nombre).all()
+        return render_template('stand/_promociones_partial.html', stand=stand, promociones=todas, productos=productos_activos)
+    except Exception as e:
+        logging.exception('Error al cargar promociones partial')
+        return f'<div class="alert alert-danger">Error al cargar promociones: {e}</div>'
 
 
 @stand_bp.route('/<codigo>/integrantes', methods=['GET', 'POST'])
@@ -338,38 +396,55 @@ def integrantes(codigo):
             flash('El nombre es obligatorio.', 'danger')
             return redirect(url_for('stand.integrantes', codigo=codigo))
 
-        integrante = Integrante(stand_id=stand.id, nombre=nombre, telefono=telefono or None)
-        db.session.add(integrante)
-        db.session.commit()
-        flash(f'Integrante "{nombre}" agregado.', 'success')
+        try:
+            integrante = Integrante(stand_id=stand.id, nombre=nombre, telefono=telefono or None)
+            db.session.add(integrante)
+            db.session.commit()
+            flash(f'Integrante "{nombre}" agregado.', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al agregar integrante: {e}', 'danger')
         return redirect(url_for('stand.integrantes', codigo=codigo))
 
-    todos = stand.integrantes.order_by(Integrante.activo.desc(), Integrante.nombre).all()
-    return render_template('stand/integrantes.html', stand=stand, integrantes=todos)
+    try:
+        todos = stand.integrantes.order_by(Integrante.activo.desc(), Integrante.nombre).all()
+        return render_template('stand/integrantes.html', stand=stand, integrantes=todos)
+    except Exception as e:
+        logging.exception('Error al cargar integrantes')
+        flash(f'Error al cargar integrantes: {e}', 'danger')
+        return redirect(url_for('stand.dashboard', codigo=codigo))
 
 
 @stand_bp.route('/<codigo>/integrantes/<int:integrante_id>/editar', methods=['POST'])
 def editar_integrante(codigo, integrante_id):
     stand = get_stand_or_404(codigo)
-    integrante = Integrante.query.filter_by(id=integrante_id, stand_id=stand.id).first_or_404()
+    try:
+        integrante = Integrante.query.filter_by(id=integrante_id, stand_id=stand.id).first_or_404()
 
-    nombre = request.form.get('nombre', '').strip()
-    telefono = request.form.get('telefono', '').strip()
+        nombre = request.form.get('nombre', '').strip()
+        telefono = request.form.get('telefono', '').strip()
 
-    if nombre:
-        integrante.nombre = nombre
-    integrante.telefono = telefono or None
-    db.session.commit()
-    flash(f'Integrante actualizado.', 'success')
+        if nombre:
+            integrante.nombre = nombre
+        integrante.telefono = telefono or None
+        db.session.commit()
+        flash(f'Integrante actualizado.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al editar integrante: {e}', 'danger')
     return redirect(url_for('stand.integrantes', codigo=codigo))
 
 
 @stand_bp.route('/<codigo>/integrantes/<int:integrante_id>/toggle', methods=['POST'])
 def toggle_integrante(codigo, integrante_id):
     stand = get_stand_or_404(codigo)
-    integrante = Integrante.query.filter_by(id=integrante_id, stand_id=stand.id).first_or_404()
-    integrante.activo = not integrante.activo
-    db.session.commit()
-    estado = "activado" if integrante.activo else "desactivado"
-    flash(f'Integrante "{integrante.nombre}" {estado}.', 'info')
+    try:
+        integrante = Integrante.query.filter_by(id=integrante_id, stand_id=stand.id).first_or_404()
+        integrante.activo = not integrante.activo
+        db.session.commit()
+        estado = "activado" if integrante.activo else "desactivado"
+        flash(f'Integrante "{integrante.nombre}" {estado}.', 'info')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error: {e}', 'danger')
     return redirect(url_for('stand.integrantes', codigo=codigo))

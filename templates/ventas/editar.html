@@ -93,12 +93,14 @@ const promos = {{ promos_json|tojson }};
 
 // Load existing items
 {% for d in venta.detalles %}
+{% if d.producto_id %}
 items[{{ d.producto_id }}] = {
     producto_id: {{ d.producto_id }},
     nombre: {{ d.nombre_producto|tojson }},
     precio: {{ d.precio_unitario }},
     cantidad: {{ d.cantidad }}
 };
+{% endif %}
 {% endfor %}
 
 function fmt(n) { return '$' + n.toLocaleString('es-CL'); }

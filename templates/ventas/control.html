@@ -730,6 +730,14 @@ function updateSidebarCounts() {
     precio.addEventListener('input', updatePreview);
 })();
 
+// Auto-refresh ventas every 8 seconds when ventas tab is active
+function autoRefreshVentas() {
+    const panel = document.getElementById('panel-ventas');
+    if (!panel || !panel.classList.contains('active')) return;
+    refreshVentas();
+}
+setInterval(autoRefreshVentas, 8000);
+
 // Init counts on load
 document.addEventListener('DOMContentLoaded', updateSidebarCounts);
 </script>

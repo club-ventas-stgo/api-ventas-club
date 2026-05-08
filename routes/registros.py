@@ -1,4 +1,5 @@
 import io
+import logging
 from collections import OrderedDict
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -117,79 +118,94 @@ def obtener_resumen_dia(stand, fecha_str):
 def index(codigo):
     stand = get_stand_or_404(codigo)
 
-    # Obtener todas las ventas y agrupar por dia en Python
-    # (compatible con SQLite y PostgreSQL sin func.date())
-    todas_ventas = stand.ventas.order_by(Venta.created_at.desc()).all()
+    try:
+        # Obtener todas las ventas y agrupar por dia en Python
+        # (compatible con SQLite y PostgreSQL sin func.date())
+        todas_ventas = stand.ventas.order_by(Venta.created_at.desc()).all()
 
-    dias_dict = OrderedDict()
-    for v in todas_ventas:
-        local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
-        dia = local_dt.strftime('%Y-%m-%d')
-        if dia not in dias_dict:
-            dias_dict[dia] = {'total_ventas': 0, 'total_recaudado': 0, 'total_pagado': 0}
-        dias_dict[dia]['total_ventas'] += 1
-        dias_dict[dia]['total_recaudado'] += v.total_final
-        dias_dict[dia]['total_pagado'] += v.monto_pagado or 0
+        dias_dict = OrderedDict()
+        for v in todas_ventas:
+            local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
+            dia = local_dt.strftime('%Y-%m-%d')
+            if dia not in dias_dict:
+                dias_dict[dia] = {'total_ventas': 0, 'total_recaudado': 0, 'total_pagado': 0}
+            dias_dict[dia]['total_ventas'] += 1
+            dias_dict[dia]['total_recaudado'] += v.total_final
+            dias_dict[dia]['total_pagado'] += v.monto_pagado or 0
 
-    dias = []
-    for fecha_str, data in dias_dict.items():
-        dias.append({
-            'fecha': fecha_str,
-            'fecha_formato': formato_fecha(fecha_str),
-            'total_ventas': data['total_ventas'],
-            'total_recaudado': data['total_recaudado'],
-            'total_pagado': data['total_pagado'],
-            'pendiente': data['total_recaudado'] - data['total_pagado'],
-        })
+        dias = []
+        for fecha_str, data in dias_dict.items():
+            dias.append({
+                'fecha': fecha_str,
+                'fecha_formato': formato_fecha(fecha_str),
+                'total_ventas': data['total_ventas'],
+                'total_recaudado': data['total_recaudado'],
+                'total_pagado': data['total_pagado'],
+                'pendiente': data['total_recaudado'] - data['total_pagado'],
+            })
 
-    total_general = sum(d['total_recaudado'] for d in dias)
-    total_dias = len(dias)
+        total_general = sum(d['total_recaudado'] for d in dias)
+        total_dias = len(dias)
 
-    return render_template('stand/registros.html', stand=stand, dias=dias,
-                           total_general=total_general, total_dias=total_dias)
+        return render_template('stand/registros.html', stand=stand, dias=dias,
+                               total_general=total_general, total_dias=total_dias)
+    except Exception as e:
+        logging.exception('Error al cargar registros')
+        flash(f'Error al cargar registros: {e}', 'danger')
+        return redirect(url_for('stand.dashboard', codigo=codigo))
 
 
 @registros_bp.route('/<codigo>/registros/partial')
 def index_partial(codigo):
     stand = get_stand_or_404(codigo)
 
-    todas_ventas = stand.ventas.order_by(Venta.created_at.desc()).all()
+    try:
+        todas_ventas = stand.ventas.order_by(Venta.created_at.desc()).all()
 
-    dias_dict = OrderedDict()
-    for v in todas_ventas:
-        local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
-        dia = local_dt.strftime('%Y-%m-%d')
-        if dia not in dias_dict:
-            dias_dict[dia] = {'total_ventas': 0, 'total_recaudado': 0, 'total_pagado': 0}
-        dias_dict[dia]['total_ventas'] += 1
-        dias_dict[dia]['total_recaudado'] += v.total_final
-        dias_dict[dia]['total_pagado'] += v.monto_pagado or 0
+        dias_dict = OrderedDict()
+        for v in todas_ventas:
+            local_dt = v.created_at.replace(tzinfo=timezone.utc).astimezone(CHILE_TZ)
+            dia = local_dt.strftime('%Y-%m-%d')
+            if dia not in dias_dict:
+                dias_dict[dia] = {'total_ventas': 0, 'total_recaudado': 0, 'total_pagado': 0}
+            dias_dict[dia]['total_ventas'] += 1
+            dias_dict[dia]['total_recaudado'] += v.total_final
+            dias_dict[dia]['total_pagado'] += v.monto_pagado or 0
 
-    dias = []
-    for fecha_str, data in dias_dict.items():
-        dias.append({
-            'fecha': fecha_str,
-            'fecha_formato': formato_fecha(fecha_str),
-            'total_ventas': data['total_ventas'],
-            'total_recaudado': data['total_recaudado'],
-            'total_pagado': data['total_pagado'],
-            'pendiente': data['total_recaudado'] - data['total_pagado'],
-        })
+        dias = []
+        for fecha_str, data in dias_dict.items():
+            dias.append({
+                'fecha': fecha_str,
+                'fecha_formato': formato_fecha(fecha_str),
+                'total_ventas': data['total_ventas'],
+                'total_recaudado': data['total_recaudado'],
+                'total_pagado': data['total_pagado'],
+                'pendiente': data['total_recaudado'] - data['total_pagado'],
+            })
 
-    total_general = sum(d['total_recaudado'] for d in dias)
-    total_dias = len(dias)
+        total_general = sum(d['total_recaudado'] for d in dias)
+        total_dias = len(dias)
 
-    return render_template('stand/_registros_partial.html', stand=stand, dias=dias,
-                           total_general=total_general, total_dias=total_dias)
+        return render_template('stand/_registros_partial.html', stand=stand, dias=dias,
+                               total_general=total_general, total_dias=total_dias)
+    except Exception as e:
+        logging.exception('Error al cargar registros partial')
+        return f'<div class="alert alert-danger">Error al cargar registros: {e}</div>'
 
 
 @registros_bp.route('/<codigo>/registros/exportar-todo')
 def exportar_todo_excel(codigo):
     stand = get_stand_or_404(codigo)
 
-    ventas = Venta.query.filter_by(stand_id=stand.id).order_by(Venta.created_at.desc()).all()
+    try:
+        ventas = Venta.query.filter_by(stand_id=stand.id).order_by(Venta.created_at.desc()).all()
+    except Exception as e:
+        logging.exception('Error al exportar registros')
+        flash(f'Error al exportar: {e}', 'danger')
+        return redirect(url_for('registros.index', codigo=codigo))
     if not ventas:
-        return 'No hay registros.', 404
+        flash('No hay registros para exportar.', 'warning')
+        return redirect(url_for('registros.index', codigo=codigo))
 
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -312,24 +328,29 @@ def detalle_dia(codigo, fecha):
     if not parsear_fecha(fecha):
         abort(404)
 
-    resumen = obtener_resumen_dia(stand, fecha)
+    try:
+        resumen = obtener_resumen_dia(stand, fecha)
 
-    # Check if there's a session linked to this day's sales
-    sesion_vinculada = None
-    sesiones_disponibles = []
-    if resumen:
-        # Find session linked to any sale of this day
-        for v in resumen['ventas']:
-            if v.sesion_id:
-                sesion_vinculada = SesionVenta.query.get(v.sesion_id)
-                break
-        # Get available sessions for linking
-        sesiones_disponibles = stand.sesiones.order_by(SesionVenta.fecha.desc()).all()
+        # Check if there's a session linked to this day's sales
+        sesion_vinculada = None
+        sesiones_disponibles = []
+        if resumen:
+            # Find session linked to any sale of this day
+            for v in resumen['ventas']:
+                if v.sesion_id:
+                    sesion_vinculada = SesionVenta.query.get(v.sesion_id)
+                    break
+            # Get available sessions for linking
+            sesiones_disponibles = stand.sesiones.order_by(SesionVenta.fecha.desc()).all()
 
-    if not resumen:
-        return render_template('stand/registro_dia.html', stand=stand, resumen=None, fecha=fecha)
-    return render_template('stand/registro_dia.html', stand=stand, resumen=resumen, fecha=fecha,
-                           sesion_vinculada=sesion_vinculada, sesiones_disponibles=sesiones_disponibles)
+        if not resumen:
+            return render_template('stand/registro_dia.html', stand=stand, resumen=None, fecha=fecha)
+        return render_template('stand/registro_dia.html', stand=stand, resumen=resumen, fecha=fecha,
+                               sesion_vinculada=sesion_vinculada, sesiones_disponibles=sesiones_disponibles)
+    except Exception as e:
+        logging.exception('Error al cargar detalle del dia')
+        flash(f'Error al cargar detalle: {e}', 'danger')
+        return redirect(url_for('registros.index', codigo=codigo))
 
 
 @registros_bp.route('/<codigo>/registros/<fecha>/excel')
@@ -340,9 +361,15 @@ def exportar_dia_excel(codigo, fecha):
     if not parsear_fecha(fecha):
         abort(404)
 
-    resumen = obtener_resumen_dia(stand, fecha)
+    try:
+        resumen = obtener_resumen_dia(stand, fecha)
+    except Exception as e:
+        logging.exception('Error al exportar dia')
+        flash(f'Error al exportar: {e}', 'danger')
+        return redirect(url_for('registros.detalle_dia', codigo=codigo, fecha=fecha))
     if not resumen:
-        return 'No hay registros para esta fecha.', 404
+        flash('No hay registros para esta fecha.', 'warning')
+        return redirect(url_for('registros.detalle_dia', codigo=codigo, fecha=fecha))
 
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -532,41 +559,46 @@ def vincular_sesion(codigo, fecha):
     if not fecha_date:
         abort(404)
 
-    sesion_id = request.form.get('sesion_id', type=int)
-    crear_nueva = request.form.get('crear_nueva')
+    try:
+        sesion_id = request.form.get('sesion_id', type=int)
+        crear_nueva = request.form.get('crear_nueva')
 
-    if crear_nueva:
-        nombre = request.form.get('nombre', '').strip()
-        sesion = SesionVenta(
-            stand_id=stand.id,
-            fecha=fecha_date,
-            nombre=nombre or None,
-            estado='abierta'
-        )
-        db.session.add(sesion)
-        db.session.flush()
-        sesion_id = sesion.id
-    elif sesion_id:
-        sesion = SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first()
-        if not sesion:
-            flash('Sesion no encontrada.', 'danger')
+        if crear_nueva:
+            nombre = request.form.get('nombre', '').strip()
+            sesion = SesionVenta(
+                stand_id=stand.id,
+                fecha=fecha_date,
+                nombre=nombre or None,
+                estado='abierta'
+            )
+            db.session.add(sesion)
+            db.session.flush()
+            sesion_id = sesion.id
+        elif sesion_id:
+            sesion = SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first()
+            if not sesion:
+                flash('Sesion no encontrada.', 'danger')
+                return redirect(url_for('registros.detalle_dia', codigo=codigo, fecha=fecha))
+        else:
+            flash('Selecciona una sesion o crea una nueva.', 'danger')
             return redirect(url_for('registros.detalle_dia', codigo=codigo, fecha=fecha))
-    else:
-        flash('Selecciona una sesion o crea una nueva.', 'danger')
-        return redirect(url_for('registros.detalle_dia', codigo=codigo, fecha=fecha))
 
-    # Update all sales of this day to link to the session
-    fecha_inicio, fecha_fin = chile_day_range(fecha_date)
+        # Update all sales of this day to link to the session
+        fecha_inicio, fecha_fin = chile_day_range(fecha_date)
 
-    ventas = Venta.query.filter(
-        Venta.stand_id == stand.id,
-        Venta.created_at >= fecha_inicio,
-        Venta.created_at < fecha_fin
-    ).all()
+        ventas = Venta.query.filter(
+            Venta.stand_id == stand.id,
+            Venta.created_at >= fecha_inicio,
+            Venta.created_at < fecha_fin
+        ).all()
 
-    for v in ventas:
-        v.sesion_id = sesion_id
+        for v in ventas:
+            v.sesion_id = sesion_id
 
-    db.session.commit()
-    flash(f'Sesion vinculada a {len(ventas)} ventas.', 'success')
+        db.session.commit()
+        flash(f'Sesion vinculada a {len(ventas)} ventas.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logging.exception('Error al vincular sesion')
+        flash(f'Error al vincular sesion: {e}', 'danger')
     return redirect(url_for('registros.detalle_dia', codigo=codigo, fecha=fecha))
