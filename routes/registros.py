@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from flask import Blueprint, render_template, send_file, abort, request, redirect, url_for, flash
 from sqlalchemy import func
 from app import db
-from models import Venta, SesionVenta
+from models import Venta, DetalleVenta, SesionVenta
 
 from routes.stand import get_stand_or_404
 
@@ -602,3 +602,38 @@ def vincular_sesion(codigo, fecha):
         logging.exception('Error al vincular sesion')
         flash(f'Error al vincular sesion: {e}', 'danger')
     return redirect(url_for('registros.detalle_dia', codigo=codigo, fecha=fecha))
+
+
+@registros_bp.route('/<codigo>/registros/<fecha>/eliminar', methods=['POST'])
+def eliminar_dia(codigo, fecha):
+    """Elimina todas las ventas de un dia especifico."""
+    stand = get_stand_or_404(codigo)
+
+    fecha_date = parsear_fecha(fecha)
+    if not fecha_date:
+        abort(404)
+
+    try:
+        fecha_inicio, fecha_fin = chile_day_range(fecha_date)
+
+        ventas = Venta.query.filter(
+            Venta.stand_id == stand.id,
+            Venta.created_at >= fecha_inicio,
+            Venta.created_at < fecha_fin
+        ).all()
+
+        if not ventas:
+            flash('No hay ventas en esta fecha.', 'warning')
+            return redirect(url_for('registros.index', codigo=codigo))
+
+        venta_ids = [v.id for v in ventas]
+        DetalleVenta.query.filter(DetalleVenta.venta_id.in_(venta_ids)).delete(synchronize_session=False)
+        Venta.query.filter(Venta.id.in_(venta_ids)).delete(synchronize_session=False)
+        db.session.commit()
+
+        flash(f'{len(venta_ids)} ventas del {formato_fecha(fecha)} eliminadas.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logging.exception('Error al eliminar registro del dia')
+        flash(f'Error al eliminar registros: {e}', 'danger')
+    return redirect(url_for('registros.index', codigo=codigo))

@@ -2,7 +2,7 @@ import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
 from sqlalchemy import func
 from app import db
-from models import Stand, Producto, Promocion, Venta, Integrante, SesionVenta
+from models import Stand, Producto, Promocion, Venta, DetalleVenta, Integrante, SesionVenta, SesionIntegrante
 from routes.main import comprimir_imagen
 
 stand_bp = Blueprint('stand', __name__, url_prefix='/s')
@@ -448,3 +448,32 @@ def toggle_integrante(codigo, integrante_id):
         db.session.rollback()
         flash(f'Error: {e}', 'danger')
     return redirect(url_for('stand.integrantes', codigo=codigo))
+
+
+@stand_bp.route('/<codigo>/reset-ventas', methods=['POST'])
+def reset_ventas(codigo):
+    """Elimina todas las ventas, sesiones y registros asociados del stand.
+    Conserva productos, promociones e integrantes."""
+    stand = get_stand_or_404(codigo)
+    try:
+        # Get IDs for cascade delete
+        venta_ids = [v.id for v in Venta.query.filter_by(stand_id=stand.id).all()]
+        sesion_ids = [s.id for s in SesionVenta.query.filter_by(stand_id=stand.id).all()]
+
+        # Delete in correct order (children first)
+        if venta_ids:
+            DetalleVenta.query.filter(DetalleVenta.venta_id.in_(venta_ids)).delete(synchronize_session=False)
+        if sesion_ids:
+            SesionIntegrante.query.filter(SesionIntegrante.sesion_id.in_(sesion_ids)).delete(synchronize_session=False)
+        if venta_ids:
+            Venta.query.filter(Venta.id.in_(venta_ids)).delete(synchronize_session=False)
+        if sesion_ids:
+            SesionVenta.query.filter(SesionVenta.id.in_(sesion_ids)).delete(synchronize_session=False)
+
+        db.session.commit()
+        flash('Todas las ventas y sesiones han sido eliminadas.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logging.exception('Error al resetear ventas')
+        flash(f'Error al resetear ventas: {e}', 'danger')
+    return redirect(url_for('stand.dashboard', codigo=codigo))

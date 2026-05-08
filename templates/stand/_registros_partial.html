@@ -52,6 +52,10 @@
         </div>
         <div class="text-end flex-shrink-0 ms-2">
             <div class="fw-bold text-success" style="font-size: 0.95rem;">${{ '{:,}'.format(dia.total_recaudado) }}</div>
+            <button type="button" class="btn btn-sm btn-outline-danger" style="border-radius: 8px; font-size: 0.6rem; padding: 0.1rem 0.35rem;"
+                    onclick="event.stopPropagation(); if(confirm('Eliminar las {{ dia.total_ventas }} ventas del {{ dia.fecha_formato }}?')) { var f=document.createElement('form'); f.method='POST'; f.action='/s/{{ stand.codigo_acceso }}/registros/{{ dia.fecha }}/eliminar'; document.body.appendChild(f); f.submit(); }">
+                <i class="bi bi-trash"></i>
+            </button>
         </div>
         <i class="bi bi-chevron-right text-muted ms-1" style="font-size: 0.8rem;"></i>
     </div>

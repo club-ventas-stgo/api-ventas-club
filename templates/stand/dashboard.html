@@ -197,10 +197,15 @@
                     </div>
                     {% endif %}
                 </div>
-                <div class="modal-footer py-2 d-flex justify-content-between">
-                    <button type="button" class="btn btn-outline-danger btn-sm" style="border-radius: 10px;" data-bs-toggle="modal" data-bs-target="#modal-eliminar" data-bs-dismiss="modal">
-                        <i class="bi bi-trash"></i> Eliminar Stand
-                    </button>
+                <div class="modal-footer py-2 d-flex justify-content-between flex-wrap gap-2">
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-danger btn-sm" style="border-radius: 10px;" data-bs-toggle="modal" data-bs-target="#modal-eliminar" data-bs-dismiss="modal">
+                            <i class="bi bi-trash"></i> Eliminar Stand
+                        </button>
+                        <button type="button" class="btn btn-outline-warning btn-sm" style="border-radius: 10px;" data-bs-toggle="modal" data-bs-target="#modal-reset" data-bs-dismiss="modal">
+                            <i class="bi bi-arrow-counterclockwise"></i> Borrar Ventas
+                        </button>
+                    </div>
                     <button type="submit" class="btn btn-primary" style="border-radius: 12px;">
                         <i class="bi bi-check-lg"></i> Guardar Cambios
                     </button>
@@ -227,6 +232,30 @@
                 <form method="POST" action="{{ url_for('stand.eliminar_stand', codigo=stand.codigo_acceso) }}">
                     <button type="submit" class="btn btn-danger btn-sm" style="border-radius: 10px;">
                         <i class="bi bi-trash"></i> Confirmar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmar Reset Ventas -->
+<div class="modal fade" id="modal-reset" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title fw-bold text-warning"><i class="bi bi-arrow-counterclockwise"></i> Borrar Ventas</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="mb-1">Se eliminaran <strong>todas las ventas y sesiones</strong> de {{ stand.nombre }}.</p>
+                <p class="small text-muted mb-0">Los productos, promociones e integrantes se conservan.</p>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="border-radius: 10px;">Cancelar</button>
+                <form method="POST" action="{{ url_for('stand.reset_ventas', codigo=stand.codigo_acceso) }}">
+                    <button type="submit" class="btn btn-warning btn-sm" style="border-radius: 10px;">
+                        <i class="bi bi-arrow-counterclockwise"></i> Confirmar
                     </button>
                 </form>
             </div>
