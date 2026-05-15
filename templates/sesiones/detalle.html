@@ -94,6 +94,33 @@
     </div>
 </div>
 
+<!-- Inversion y Ganancia -->
+{% set inv = sesion.inversion or 0 %}
+{% set ganancia = resumen.total_recaudado - inv %}
+<div class="tile finance-tile mb-3">
+    <div class="finance-row mb-2">
+        <div class="finance-item">
+            <div class="finance-value" id="ses-inv-display">${{ '{:,}'.format(inv) }}</div>
+            <div class="finance-label">Inversion</div>
+        </div>
+        <div class="finance-item">
+            <div class="finance-value {{ 'profit-positive' if ganancia >= 0 else 'profit-negative' }}" id="ses-gan-display">${{ '{:,}'.format(ganancia) }}</div>
+            <div class="finance-label">Ganancia</div>
+        </div>
+    </div>
+    <div class="collapse" id="form-inversion-sesion">
+        <div class="input-group input-group-sm mt-2">
+            <span class="input-group-text" style="border-radius: 10px 0 0 10px;">$ Inversion</span>
+            <input type="number" class="form-control" id="ses-input-inversion" value="{{ inv }}" min="0">
+            <button type="button" class="btn btn-primary" id="ses-btn-guardar-inv" style="border-radius: 0 10px 10px 0;">Guardar</button>
+        </div>
+        <div class="text-center mt-1" id="ses-inv-feedback" style="font-size: 0.7rem; display: none;"></div>
+    </div>
+    <button class="btn btn-sm btn-light w-100 mt-1" data-bs-toggle="collapse" data-bs-target="#form-inversion-sesion" style="border-radius: 10px; font-size: 0.75rem;">
+        <i class="bi bi-pencil"></i> Editar Inversion
+    </button>
+</div>
+
 {% if resumen.total_ventas > 0 %}
 <!-- Desglose metodos de pago -->
 <div class="tile mb-3" style="padding: 0; overflow: hidden;">
@@ -427,6 +454,73 @@
 
 {% block scripts %}
 <script>
+(function() {
+    const input = document.getElementById('ses-input-inversion');
+    const btn = document.getElementById('ses-btn-guardar-inv');
+    const feedback = document.getElementById('ses-inv-feedback');
+    const invDisplay = document.getElementById('ses-inv-display');
+    const ganDisplay = document.getElementById('ses-gan-display');
+    const totalRecaudado = {{ resumen.total_recaudado }};
+    const url = '{{ url_for("sesiones.actualizar_inversion", codigo=stand.codigo_acceso, sesion_id=sesion.id) }}';
+
+    function guardarInversion() {
+        const val = parseInt(input.value) || 0;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        feedback.style.display = 'none';
+
+        const formData = new FormData();
+        formData.append('inversion', val);
+
+        fetch(url, {
+            method: 'POST',
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                invDisplay.textContent = '$' + val.toLocaleString('es-CL');
+                const ganancia = totalRecaudado - val;
+                ganDisplay.textContent = '$' + ganancia.toLocaleString('es-CL');
+                ganDisplay.className = 'finance-value ' + (ganancia >= 0 ? 'profit-positive' : 'profit-negative');
+                feedback.textContent = 'Guardado';
+                feedback.className = 'text-center mt-1 text-success';
+            } else {
+                feedback.textContent = data.error || 'Error al guardar';
+                feedback.className = 'text-center mt-1 text-danger';
+            }
+            feedback.style.display = 'block';
+            setTimeout(() => { feedback.style.display = 'none'; }, 2000);
+        })
+        .catch(() => {
+            feedback.textContent = 'Error de conexion';
+            feedback.className = 'text-center mt-1 text-danger';
+            feedback.style.display = 'block';
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = 'Guardar';
+        });
+    }
+
+    btn.addEventListener('click', guardarInversion);
+
+    let debounceTimer;
+    input.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(guardarInversion, 800);
+    });
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(debounceTimer);
+            guardarInversion();
+        }
+    });
+})();
+
 function crearIntegrante() {
     const nombre = document.getElementById('nuevo-integ-nombre').value.trim();
     const telefono = document.getElementById('nuevo-integ-tel').value.trim();

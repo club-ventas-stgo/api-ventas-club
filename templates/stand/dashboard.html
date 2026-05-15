@@ -72,6 +72,7 @@
 </div>
 
 <!-- Financial summary tile -->
+{% if sesion_abierta %}
 <div class="tile finance-tile mb-3">
     <div class="finance-row mb-2">
         <div class="finance-item">
@@ -79,27 +80,35 @@
             <div class="finance-label">Recaudado</div>
         </div>
         <div class="finance-item">
-            <div class="finance-value">${{ '{:,}'.format(stand.inversion or 0) }}</div>
+            <div class="finance-value" id="inv-display">${{ '{:,}'.format(inversion_sesion) }}</div>
             <div class="finance-label">Inversion</div>
         </div>
         <div class="finance-item">
-            <div class="finance-value {{ 'profit-positive' if ganancia_neta >= 0 else 'profit-negative' }}">
+            <div class="finance-value {{ 'profit-positive' if ganancia_neta >= 0 else 'profit-negative' }}" id="gan-display">
                 ${{ '{:,}'.format(ganancia_neta) }}
             </div>
             <div class="finance-label">Ganancia</div>
         </div>
     </div>
     <div class="collapse" id="form-inversion">
-        <form method="POST" class="input-group input-group-sm mt-2">
+        <div class="input-group input-group-sm mt-2">
             <span class="input-group-text" style="border-radius: 10px 0 0 10px;">$ Inversion</span>
-            <input type="number" class="form-control" name="inversion" value="{{ stand.inversion or 0 }}" min="0">
-            <button type="submit" class="btn btn-primary" style="border-radius: 0 10px 10px 0;">Guardar</button>
-        </form>
+            <input type="number" class="form-control" id="input-inversion" value="{{ inversion_sesion }}" min="0">
+            <button type="button" class="btn btn-primary" id="btn-guardar-inv" style="border-radius: 0 10px 10px 0;">Guardar</button>
+        </div>
+        <div class="text-center mt-1" id="inv-feedback" style="font-size: 0.7rem; display: none;"></div>
     </div>
     <button class="btn btn-sm btn-light w-100 mt-1" data-bs-toggle="collapse" data-bs-target="#form-inversion" style="border-radius: 10px; font-size: 0.75rem;">
-        <i class="bi bi-pencil"></i> Editar Inversion
+        <i class="bi bi-pencil"></i> Editar Inversion Sesion
     </button>
 </div>
+{% else %}
+<div class="tile finance-tile mb-3">
+    <div class="text-center py-2">
+        <span class="text-muted" style="font-size: 0.82rem;">Abre una sesion para ver finanzas e inversion</span>
+    </div>
+</div>
+{% endif %}
 
 <!-- Panel de Control -->
 <a href="{{ url_for('ventas.control', codigo=stand.codigo_acceso, sesion_id=sesion_abierta.id if sesion_abierta else none) }}" class="tile-link d-block mb-3">
@@ -262,4 +271,77 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if sesion_abierta %}
+<script>
+(function() {
+    const input = document.getElementById('input-inversion');
+    const btn = document.getElementById('btn-guardar-inv');
+    const feedback = document.getElementById('inv-feedback');
+    const invDisplay = document.getElementById('inv-display');
+    const ganDisplay = document.getElementById('gan-display');
+    const totalRecaudado = {{ total_recaudado }};
+    const url = '/s/{{ stand.codigo_acceso }}/sesiones/{{ sesion_abierta.id }}/inversion';
+
+    function guardarInversion() {
+        const val = parseInt(input.value) || 0;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        feedback.style.display = 'none';
+
+        const formData = new FormData();
+        formData.append('inversion', val);
+
+        fetch(url, {
+            method: 'POST',
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                invDisplay.textContent = '$' + val.toLocaleString('es-CL');
+                const ganancia = totalRecaudado - val;
+                ganDisplay.textContent = '$' + ganancia.toLocaleString('es-CL');
+                ganDisplay.className = 'finance-value ' + (ganancia >= 0 ? 'profit-positive' : 'profit-negative');
+                feedback.textContent = 'Guardado';
+                feedback.className = 'text-center mt-1 text-success';
+            } else {
+                feedback.textContent = data.error || 'Error al guardar';
+                feedback.className = 'text-center mt-1 text-danger';
+            }
+            feedback.style.display = 'block';
+            setTimeout(() => { feedback.style.display = 'none'; }, 2000);
+        })
+        .catch(() => {
+            feedback.textContent = 'Error de conexion';
+            feedback.className = 'text-center mt-1 text-danger';
+            feedback.style.display = 'block';
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = 'Guardar';
+        });
+    }
+
+    btn.addEventListener('click', guardarInversion);
+
+    let debounceTimer;
+    input.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(guardarInversion, 800);
+    });
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(debounceTimer);
+            guardarInversion();
+        }
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

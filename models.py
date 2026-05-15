@@ -118,6 +118,7 @@ class SesionVenta(db.Model):
     fecha = db.Column(db.Date, nullable=False)
     nombre = db.Column(db.String(100))
     estado = db.Column(db.String(20), default='programada')
+    inversion = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     integrantes = db.relationship('SesionIntegrante', backref='sesion', lazy='select')

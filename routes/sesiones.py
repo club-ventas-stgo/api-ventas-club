@@ -2,7 +2,7 @@ import io
 import logging
 from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify
 from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 from app import db
@@ -179,6 +179,37 @@ def cambiar_estado(codigo, sesion_id):
         logging.exception('Error al cambiar estado de sesion')
         flash(f'Error al cambiar estado: {e}', 'danger')
         return redirect(url_for('sesiones.lista', codigo=codigo))
+
+
+@sesiones_bp.route('/<codigo>/sesiones/<int:sesion_id>/inversion', methods=['POST'])
+def actualizar_inversion(codigo, sesion_id):
+    stand = get_stand_or_404(codigo)
+    try:
+        sesion = SesionVenta.query.filter_by(id=sesion_id, stand_id=stand.id).first_or_404()
+        inversion = int(request.form.get('inversion', 0))
+        sesion.inversion = inversion
+        db.session.commit()
+
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_ajax:
+            return jsonify({'success': True, 'inversion': inversion})
+
+        flash('Inversion de sesion actualizada.', 'success')
+    except (ValueError, TypeError):
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'Valor invalido.'}), 400
+        flash('El valor de inversion debe ser un numero.', 'danger')
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        logging.exception('Error al actualizar inversion de sesion')
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_ajax:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        flash(f'Error al actualizar inversion: {e}', 'danger')
+    return redirect(url_for('sesiones.detalle', codigo=codigo, sesion_id=sesion_id))
 
 
 @sesiones_bp.route('/<codigo>/sesiones/<int:sesion_id>/nuevo-integrante', methods=['POST'])

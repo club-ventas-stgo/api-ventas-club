@@ -15,18 +15,9 @@ def get_stand_or_404(codigo):
     return stand
 
 
-@stand_bp.route('/<codigo>', methods=['GET', 'POST'])
+@stand_bp.route('/<codigo>')
 def dashboard(codigo):
     stand = get_stand_or_404(codigo)
-
-    if request.method == 'POST' and 'inversion' in request.form:
-        try:
-            stand.inversion = int(request.form.get('inversion', 0))
-            db.session.commit()
-            flash('Inversion actualizada.', 'success')
-        except ValueError:
-            flash('El valor de inversion debe ser un numero.', 'danger')
-        return redirect(url_for('stand.dashboard', codigo=codigo))
 
     productos_activos = stand.productos.filter_by(activo=True).count()
 
@@ -42,18 +33,21 @@ def dashboard(codigo):
         total_ventas = Venta.query.filter_by(stand_id=stand.id, sesion_id=sesion_abierta.id).count()
         ventas_pendientes = Venta.query.filter_by(stand_id=stand.id, sesion_id=sesion_abierta.id, estado_entrega='pendiente').count()
         total_recaudado = db.session.query(func.coalesce(func.sum(Venta.total_final), 0)).filter_by(stand_id=stand.id, sesion_id=sesion_abierta.id).scalar()
+        inversion_sesion = sesion_abierta.inversion or 0
     else:
         total_ventas = 0
         ventas_pendientes = 0
         total_recaudado = 0
+        inversion_sesion = 0
 
-    ganancia_neta = total_recaudado - (stand.inversion or 0)
+    ganancia_neta = total_recaudado - inversion_sesion
     return render_template('stand/dashboard.html', stand=stand,
                            total_ventas=total_ventas,
                            productos_activos=productos_activos,
                            ventas_pendientes=ventas_pendientes,
                            total_recaudado=total_recaudado,
                            ganancia_neta=ganancia_neta,
+                           inversion_sesion=inversion_sesion,
                            sesion_abierta=sesion_abierta)
 
 
