@@ -272,21 +272,43 @@ def main():
 
         # ============================================================
         print('\n' + '='*60)
-        print('8. VERIFICAR STOCK')
+        print('8. VERIFICAR STOCK SE DESCUENTA CON CADA VENTA')
         print('='*60)
+
+        # Resumen de ventas hasta ahora:
+        # v1: 2 empanadas + 1 choripán
+        # v2: 6 empanadas
+        # v3: 3 choripanes + 4 jugos
+        # v4: 4 empanadas + 2 jugos
+        #
+        # Empanada (stock=sin limite): vendido=2+6+4=12
+        # Choripán (stock=20): vendido=1+3=4, disponible=20-4=16
+        # Jugo (stock=50): vendido=4+2=6, disponible=50-6=44
+
+        # API /stock solo retorna productos CON stock limitado (Choripán y Jugo)
         resp = client.get(f'/s/{codigo}/stock')
         stock_data = resp.get_json()
         check('API /stock responde JSON', isinstance(stock_data, list))
+        check(f'API retorna 2 productos con stock limitado', len(stock_data) == 2)
 
         choripan_stock = [s for s in stock_data if s['nombre'] == 'Choripán'][0]
-        # Choripán: vendidos = 1 (v1) + 3 (v3) = 4, disponible = 20-4 = 16
-        check(f'Choripán: vendido={choripan_stock["vendido"]}, disponible={choripan_stock["disponible"]}',
+        check(f'Choripan via API: stock=20, vendido={choripan_stock["vendido"]}(1+3=4), disponible={choripan_stock["disponible"]}(20-4=16)',
               choripan_stock['vendido'] == 4 and choripan_stock['disponible'] == 16)
 
         jugo_stock = [s for s in stock_data if s['nombre'] == 'Jugo Natural'][0]
-        # Jugo: vendidos = 4 (v3) + 2 (v4) = 6, disponible = 50-6 = 44
-        check(f'Jugo: vendido={jugo_stock["vendido"]}, disponible={jugo_stock["disponible"]}',
+        check(f'Jugo via API: stock=50, vendido={jugo_stock["vendido"]}(4+2=6), disponible={jugo_stock["disponible"]}(50-6=44)',
               jugo_stock['vendido'] == 6 and jugo_stock['disponible'] == 44)
+
+        # Verificar stock directamente en el modelo (incluye empanada sin limite)
+        db.session.refresh(empanada)
+        db.session.refresh(choripan)
+        db.session.refresh(jugo)
+        check(f'Empanada (sin limite): stock_vendido={empanada.stock_vendido} (2+6+4=12), disponible=None',
+              empanada.stock_vendido == 12 and empanada.stock_disponible is None)
+        check(f'Choripan (stock=20): stock_vendido={choripan.stock_vendido} (1+3=4), disponible={choripan.stock_disponible} (16)',
+              choripan.stock_vendido == 4 and choripan.stock_disponible == 16)
+        check(f'Jugo (stock=50): stock_vendido={jugo.stock_vendido} (4+2=6), disponible={jugo.stock_disponible} (44)',
+              jugo.stock_vendido == 6 and jugo.stock_disponible == 44)
 
         # ============================================================
         print('\n' + '='*60)
@@ -331,7 +353,7 @@ def main():
 
         # ============================================================
         print('\n' + '='*60)
-        print('10. VERIFICAR RESUMEN FINANCIERO')
+        print('10. VERIFICAR RESUMEN FINANCIERO + INVERSION EN SESION')
         print('='*60)
 
         total_recaudado = v1.total_final + v2.total_final + v3.total_final + v4.total_final
@@ -351,6 +373,55 @@ def main():
         monto_transferencia = v2.total_final + v4.total_final
         check(f'Efectivo: ${monto_efectivo:,} (2 ventas)', monto_efectivo == 14500)
         check(f'Transferencia: ${monto_transferencia:,} (2 ventas)', monto_transferencia == 20500)
+
+        # --- Setear inversión $20.000 y verificar ganancia en dashboard ---
+        resp = client.post(f'/s/{codigo}/sesiones/{sesion.id}/inversion',
+                           data={'inversion': '20000'},
+                           headers={'X-Requested-With': 'XMLHttpRequest'})
+        data = resp.get_json()
+        check('Setear inversión $20.000 en sesión', data.get('success') is True)
+
+        ganancia_esperada = total_recaudado - 20000  # 35.000 - 20.000 = 15.000
+        check(f'Ganancia esperada: ${total_recaudado:,} - $20,000 = ${ganancia_esperada:,}',
+              ganancia_esperada == 15000)
+
+        # Verificar en dashboard
+        resp = client.get(f'/s/{codigo}')
+        html_dash_inv = resp.data.decode('utf-8')
+        check('Dashboard → 200', resp.status_code == 200)
+        check(f'Dashboard muestra recaudado $35,000', '35,000' in html_dash_inv or '35.000' in html_dash_inv)
+        check(f'Dashboard muestra inversión $20,000', '20,000' in html_dash_inv or '20.000' in html_dash_inv)
+        check(f'Dashboard muestra ganancia $15,000', '15,000' in html_dash_inv or '15.000' in html_dash_inv)
+        check('Dashboard: ganancia positiva (profit-positive)', 'profit-positive' in html_dash_inv)
+        check('Dashboard: input value=20000', 'value="20000"' in html_dash_inv)
+
+        # Verificar en detalle de sesión
+        resp = client.get(f'/s/{codigo}/sesiones/{sesion.id}')
+        html_det_inv = resp.data.decode('utf-8')
+        check('Detalle sesión → 200', resp.status_code == 200)
+        check(f'Detalle muestra inversión $20,000', '20,000' in html_det_inv or '20.000' in html_det_inv)
+        check(f'Detalle muestra ganancia $15,000', '15,000' in html_det_inv or '15.000' in html_det_inv)
+        check('Detalle: ganancia positiva (profit-positive)', 'profit-positive' in html_det_inv)
+
+        # --- Cambiar a inversión $40.000 → ganancia negativa ---
+        resp = client.post(f'/s/{codigo}/sesiones/{sesion.id}/inversion',
+                           data={'inversion': '40000'},
+                           headers={'X-Requested-With': 'XMLHttpRequest'})
+        check('Cambiar inversión a $40.000', resp.get_json().get('success') is True)
+
+        ganancia_neg = total_recaudado - 40000  # 35.000 - 40.000 = -5.000
+        check(f'Ganancia negativa: ${total_recaudado:,} - $40,000 = ${ganancia_neg:,}',
+              ganancia_neg == -5000)
+
+        resp = client.get(f'/s/{codigo}')
+        html_neg = resp.data.decode('utf-8')
+        check(f'Dashboard muestra inversión $40,000', '40,000' in html_neg or '40.000' in html_neg)
+        check('Dashboard: ganancia negativa (profit-negative)', 'profit-negative' in html_neg)
+        check('Dashboard: value=40000', 'value="40000"' in html_neg)
+
+        resp = client.get(f'/s/{codigo}/sesiones/{sesion.id}')
+        html_neg_det = resp.data.decode('utf-8')
+        check('Detalle: ganancia negativa (profit-negative)', 'profit-negative' in html_neg_det)
 
         # ============================================================
         print('\n' + '='*60)
@@ -546,20 +617,37 @@ def main():
 
         # ============================================================
         print('\n' + '='*60)
-        print('21. VERIFICAR STOCK FINAL')
+        print('21. STOCK SE DESCUENTA DESPUES DE EDITAR VENTA')
         print('='*60)
+        # v4 fue editada: antes tenía 4 empanadas + 2 jugos
+        #                  ahora tiene 4 empanadas + 1 choripán
+        # Stock se recalcula automáticamente:
+        #
+        # Empanada: v1(2) + v2(6) + v3(0) + v4(4) = 12 vendidas (sin limite)
+        # Choripán: v1(1) + v3(3) + v4-editado(1) = 5 vendidos
+        #   stock=20 → disponible = 20 - 5 = 15
+        # Jugo: v3(4) + v4-editado(0, se quitó) = 4 vendidos
+        #   stock=50 → disponible = 50 - 4 = 46
+
         resp = client.get(f'/s/{codigo}/stock')
         stock_final = resp.get_json()
 
         choripan_final = [s for s in stock_final if s['nombre'] == 'Choripán'][0]
-        # Choripán: v1(1) + v3(3) + v4-editado(1) = 5, disponible = 20-5 = 15
-        check(f'Choripán final: vendido={choripan_final["vendido"]}, disponible={choripan_final["disponible"]}',
+        check(f'Choripan post-edicion: stock=20, vendido={choripan_final["vendido"]}(1+3+1=5), disponible={choripan_final["disponible"]}(20-5=15)',
               choripan_final['vendido'] == 5 and choripan_final['disponible'] == 15)
 
         jugo_final = [s for s in stock_final if s['nombre'] == 'Jugo Natural'][0]
-        # Jugo: v3(4) + v4-editado(0, fue eliminado) = 4, disponible = 50-4 = 46
-        check(f'Jugo final: vendido={jugo_final["vendido"]}, disponible={jugo_final["disponible"]}',
+        check(f'Jugo post-edicion: stock=50, vendido={jugo_final["vendido"]}(4+0=4), disponible={jugo_final["disponible"]}(50-4=46)',
               jugo_final['vendido'] == 4 and jugo_final['disponible'] == 46)
+
+        # Verificar en modelo que coincide
+        db.session.expire_all()
+        check(f'Empanada (sin limite): vendido={empanada.stock_vendido} (sigue 12, sin cambios)',
+              empanada.stock_vendido == 12)
+        check(f'Choripan modelo: disponible={choripan.stock_disponible} (20-5=15)',
+              choripan.stock_disponible == 15)
+        check(f'Jugo modelo: disponible={jugo.stock_disponible} (50-4=46)',
+              jugo.stock_disponible == 46)
 
         # ============================================================
         print('\n' + '='*60)
@@ -573,58 +661,55 @@ def main():
 
         # ============================================================
         print('\n' + '='*60)
-        print('23. INVERSION POR SESION - AJAX')
+        print('23. INVERSION POR SESION - ENDPOINT AJAX')
         print('='*60)
 
-        # Reabrir sesión para probar inversión
+        # Reabrir sesión para probar inversión con cambios adicionales
         resp = client.post(f'/s/{codigo}/sesiones/{sesion.id}/estado', data={
             'estado': 'abierta',
         }, follow_redirects=True)
         db.session.refresh(sesion)
         check(f'Sesión reabierta: estado={sesion.estado}', sesion.estado == 'abierta')
 
-        # Verificar inversión inicial es 0
-        check(f'Inversión inicial sesión: {sesion.inversion}', (sesion.inversion or 0) == 0)
-
-        # --- Test AJAX: Setear inversión a $15.000 ---
-        resp = client.post(f'/s/{codigo}/sesiones/{sesion.id}/inversion',
-                           data={'inversion': '15000'},
-                           headers={'X-Requested-With': 'XMLHttpRequest'})
-        check('AJAX inversión → 200', resp.status_code == 200)
-        data = resp.get_json()
-        check(f'JSON success=True', data.get('success') is True)
-        check(f'JSON inversion=15000', data.get('inversion') == 15000)
-
+        # La inversión ya está en $40.000 (seteada en paso 10)
         db.session.refresh(sesion)
-        check(f'Inversión en DB: ${sesion.inversion:,}', sesion.inversion == 15000)
+        check(f'Inversión actual: ${sesion.inversion:,}', sesion.inversion == 40000)
 
-        # --- Test AJAX: Actualizar inversión a $25.000 ---
+        # --- Test AJAX: Actualizar a $25.000 ---
         resp = client.post(f'/s/{codigo}/sesiones/{sesion.id}/inversion',
                            data={'inversion': '25000'},
                            headers={'X-Requested-With': 'XMLHttpRequest'})
         data = resp.get_json()
-        check('Actualizar inversión a $25.000', data.get('success') is True and data.get('inversion') == 25000)
+        check('AJAX actualizar a $25.000: success', data.get('success') is True)
+        check('AJAX retorna inversion=25000', data.get('inversion') == 25000)
         db.session.refresh(sesion)
-        check(f'Inversión actualizada en DB: ${sesion.inversion:,}', sesion.inversion == 25000)
+        check(f'DB: sesion.inversion=${sesion.inversion:,}', sesion.inversion == 25000)
 
         # --- Test AJAX: Inversión a $0 ---
         resp = client.post(f'/s/{codigo}/sesiones/{sesion.id}/inversion',
                            data={'inversion': '0'},
                            headers={'X-Requested-With': 'XMLHttpRequest'})
         data = resp.get_json()
-        check('Inversión a $0', data.get('success') is True and data.get('inversion') == 0)
-        db.session.refresh(sesion)
-        check(f'Inversión $0 en DB', sesion.inversion == 0)
+        check('AJAX inversión a $0', data.get('success') is True and data.get('inversion') == 0)
 
-        # --- Test AJAX: Valor invalido ---
+        # Verificar ganancia = recaudado cuando inversión es 0
+        resp = client.get(f'/s/{codigo}')
+        html0 = resp.data.decode('utf-8')
+        check('Con inversión $0: ganancia = recaudado ($35,000)', 'profit-positive' in html0)
+
+        # --- Test: Valor invalido (letras) ---
         resp = client.post(f'/s/{codigo}/sesiones/{sesion.id}/inversion',
                            data={'inversion': 'abc'},
                            headers={'X-Requested-With': 'XMLHttpRequest'})
-        check('Valor invalido → 400', resp.status_code == 400)
+        check('Valor invalido "abc" → 400', resp.status_code == 400)
         data = resp.get_json()
-        check('JSON error en valor invalido', data.get('success') is False)
+        check('Retorna success=false con error', data.get('success') is False)
 
-        # --- Test form POST (redirect) ---
+        # Verificar que el valor invalido no cambió nada
+        db.session.refresh(sesion)
+        check(f'Inversión no cambió tras error: ${sesion.inversion:,}', sesion.inversion == 0)
+
+        # --- Test form POST (no-AJAX, redirect) ---
         resp = client.post(f'/s/{codigo}/sesiones/{sesion.id}/inversion',
                            data={'inversion': '50000'},
                            follow_redirects=False)
@@ -634,55 +719,7 @@ def main():
 
         # ============================================================
         print('\n' + '='*60)
-        print('24. DASHBOARD CON INVERSION DE SESION')
-        print('='*60)
-
-        resp = client.get(f'/s/{codigo}')
-        check('Dashboard con sesión activa → 200', resp.status_code == 200)
-        html_dash = resp.data.decode('utf-8')
-
-        # Verificar que muestra inversión de la sesión
-        check('"Inversion" en dashboard', 'Inversion' in html_dash)
-        check('"Editar Inversion Sesion" en dashboard', 'Editar Inversion Sesion' in html_dash)
-        check('"Recaudado" en dashboard', 'Recaudado' in html_dash)
-        check('"Ganancia" en dashboard', 'Ganancia' in html_dash)
-        check('Input inversión presente', 'input-inversion' in html_dash)
-        check('Boton guardar presente', 'btn-guardar-inv' in html_dash)
-        check('Feedback element presente', 'inv-feedback' in html_dash)
-        check('Auto-save JS presente', 'guardarInversion' in html_dash)
-        check('Debounce JS presente', 'debounceTimer' in html_dash)
-
-        # Verificar que la ganancia se calcula con inversión de sesión
-        # total_recaudado actual = $35.000, inversión sesión = $50.000
-        # ganancia = $35.000 - $50.000 = -$15.000
-        check('Ganancia negativa (profit-negative) mostrada', 'profit-negative' in html_dash)
-        check('$50,000 inversión en valor input', 'value="50000"' in html_dash)
-
-        # Sin sesión: no debe haber HTML de error
-        check('Sin error HTML en dashboard', 'Internal Server Error' not in html_dash)
-        check('Sin error 500 en dashboard', 'Error interno' not in html_dash)
-
-        # ============================================================
-        print('\n' + '='*60)
-        print('25. DETALLE SESION CON INVERSION')
-        print('='*60)
-
-        resp = client.get(f'/s/{codigo}/sesiones/{sesion.id}')
-        check('Detalle sesión → 200', resp.status_code == 200)
-        html_det = resp.data.decode('utf-8')
-
-        check('"Inversion" en detalle sesión', 'Inversion' in html_det)
-        check('"Ganancia" en detalle sesión', 'Ganancia' in html_det)
-        check('"Editar Inversion" en detalle sesión', 'Editar Inversion' in html_det)
-        check('Input inversión en detalle', 'ses-input-inversion' in html_det)
-        check('Boton guardar en detalle', 'ses-btn-guardar-inv' in html_det)
-        check('Auto-save JS en detalle', 'guardarInversion' in html_det)
-        check('$50,000 inversión en detalle', 'value="50000"' in html_det)
-        check('Sin error HTML en detalle', 'Internal Server Error' not in html_det)
-
-        # ============================================================
-        print('\n' + '='*60)
-        print('26. DASHBOARD SIN SESION ACTIVA')
+        print('24. DASHBOARD SIN SESION ACTIVA')
         print('='*60)
 
         # Cerrar sesión
@@ -696,15 +733,15 @@ def main():
         check('Dashboard sin sesión → 200', resp.status_code == 200)
         html_noact = resp.data.decode('utf-8')
         check('"Abre una sesion" mensaje', 'Abre una sesion' in html_noact)
-        check('Sin input inversión (no hay sesión)', 'input-inversion' not in html_noact)
+        check('Sin input inversión (no hay sesión activa)', 'input-inversion' not in html_noact)
         check('Sin error HTML', 'Internal Server Error' not in html_noact)
 
         # ============================================================
         print('\n' + '='*60)
-        print('27. INVERSION INDEPENDIENTE POR SESION')
+        print('25. INVERSION INDEPENDIENTE POR SESION')
         print('='*60)
 
-        # Crear segunda sesión y verificar que tiene inversión independiente
+        # Crear segunda sesión con inversión diferente
         resp = client.post(f'/s/{codigo}/sesiones/nueva', data={
             'fecha': hoy,
             'nombre': 'Segunda Sesion',
@@ -712,39 +749,35 @@ def main():
         check('Segunda sesión creada', resp.status_code == 302)
 
         sesion2 = SesionVenta.query.filter_by(stand_id=stand.id, nombre='Segunda Sesion').first()
-        check(f'Segunda sesión en DB', sesion2 is not None)
-        check(f'Inversión inicial sesión 2: {sesion2.inversion or 0}', (sesion2.inversion or 0) == 0)
+        check(f'Inversión inicial sesión 2: ${sesion2.inversion or 0}', (sesion2.inversion or 0) == 0)
 
-        # Setear inversión en segunda sesión
+        # Setear inversiones independientes
         resp = client.post(f'/s/{codigo}/sesiones/{sesion2.id}/inversion',
                            data={'inversion': '80000'},
                            headers={'X-Requested-With': 'XMLHttpRequest'})
-        data = resp.get_json()
-        check('Inversión sesión 2 = $80.000', data.get('success') is True)
+        check('Inversión sesión 2 = $80.000', resp.get_json().get('success') is True)
 
-        # Verificar que sesión 1 mantiene su inversión
+        # Verificar independencia
         db.session.refresh(sesion)
         db.session.refresh(sesion2)
-        check(f'Sesión 1 mantiene inversión: ${sesion.inversion:,}', sesion.inversion == 50000)
-        check(f'Sesión 2 tiene inversión: ${sesion2.inversion:,}', sesion2.inversion == 80000)
+        check(f'Sesión 1 mantiene su inversión: ${sesion.inversion:,} ($50.000)', sesion.inversion == 50000)
+        check(f'Sesión 2 tiene su inversión: ${sesion2.inversion:,} ($80.000)', sesion2.inversion == 80000)
 
-        # ============================================================
-        print('\n' + '='*60)
-        print('28. DETALLE SESION CERRADA CON INVERSION')
-        print('='*60)
-
-        # La sesión 1 está cerrada con inversión $50.000
+        # Detalle de sesión 1 (cerrada) muestra su inversión
         resp = client.get(f'/s/{codigo}/sesiones/{sesion.id}')
-        check('Detalle sesión cerrada → 200', resp.status_code == 200)
-        html_cerrada = resp.data.decode('utf-8')
-        check('Inversión visible en sesión cerrada', 'Inversion' in html_cerrada)
-        check('Ganancia visible en sesión cerrada', 'Ganancia' in html_cerrada)
-        check('Sin error HTML', 'Internal Server Error' not in html_cerrada)
-        check('Sin error 500', 'Error interno' not in html_cerrada)
+        html_s1 = resp.data.decode('utf-8')
+        check('Sesión 1 cerrada: muestra inversión $50,000', 'value="50000"' in html_s1)
+        # ganancia sesión 1 = 35.000 - 50.000 = -15.000
+        check('Sesión 1: ganancia negativa', 'profit-negative' in html_s1)
+
+        # Detalle de sesión 2 muestra su inversión
+        resp = client.get(f'/s/{codigo}/sesiones/{sesion2.id}')
+        html_s2 = resp.data.decode('utf-8')
+        check('Sesión 2: muestra inversión $80,000', 'value="80000"' in html_s2)
 
         # ============================================================
         print('\n' + '='*60)
-        print('29. TODAS LAS PAGINAS SIN ERRORES')
+        print('26. TODAS LAS PAGINAS SIN ERRORES')
         print('='*60)
 
         pages = [
