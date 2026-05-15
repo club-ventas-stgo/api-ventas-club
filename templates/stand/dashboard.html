@@ -110,6 +110,34 @@
 </div>
 {% endif %}
 
+<!-- Stock de productos -->
+{% if productos_con_stock %}
+<div class="tile mb-3" style="padding: 0; overflow: hidden;">
+    <div style="background: linear-gradient(135deg, #8e8e93, #636366); color: white; padding: 0.4rem 0.75rem;" class="d-flex justify-content-between align-items-center">
+        <strong class="small"><i class="bi bi-box-seam"></i> Stock</strong>
+    </div>
+    <div style="padding: 0;">
+        {% for p in productos_con_stock %}
+        <div class="d-flex justify-content-between align-items-center" style="padding: 0.4rem 0.75rem; border-bottom: 1px solid #f0f0f0;">
+            <div>
+                <span class="fw-semibold" style="font-size: 0.8rem;">{{ p.nombre }}</span>
+                <span class="text-muted" style="font-size: 0.68rem;">{{ p.stock_vendido }}/{{ p.stock }}</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <div style="width: 40px; height: 5px; background: #e9ecef; border-radius: 3px; overflow: hidden;">
+                    {% set pct = ((p.stock_vendido / p.stock) * 100) | int if p.stock > 0 else 0 %}
+                    <div style="width: {{ pct }}%; height: 100%; background: {{ '#ff3b30' if p.stock_disponible <= 0 else ('#ff9500' if p.stock_disponible <= 5 else '#34c759') }}; border-radius: 3px;"></div>
+                </div>
+                <span class="badge {{ 'bg-danger' if p.stock_disponible <= 0 else ('bg-warning text-dark' if p.stock_disponible <= 5 else 'bg-success') }}" style="border-radius: 6px; font-size: 0.65rem; min-width: 30px;">
+                    {{ p.stock_disponible }}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Panel de Control -->
 <a href="{{ url_for('ventas.control', codigo=stand.codigo_acceso, sesion_id=sesion_abierta.id if sesion_abierta else none) }}" class="tile-link d-block mb-3">
     <div class="tile" style="padding: 1.25rem; background: linear-gradient(135deg, #007aff, #5856d6); color: white;">

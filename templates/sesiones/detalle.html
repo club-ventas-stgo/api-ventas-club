@@ -229,6 +229,34 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Stock de productos -->
+{% if productos_con_stock %}
+<div class="tile mb-3" style="padding: 0; overflow: hidden;">
+    <div style="background: linear-gradient(135deg, #8e8e93, #636366); color: white; padding: 0.5rem 0.75rem;">
+        <strong class="small"><i class="bi bi-box-seam"></i> Stock de Productos</strong>
+    </div>
+    <div style="padding: 0;">
+        {% for p in productos_con_stock %}
+        <div class="d-flex justify-content-between align-items-center" style="padding: 0.5rem 1rem; border-bottom: 1px solid #f0f0f0;">
+            <div>
+                <div class="fw-semibold" style="font-size: 0.85rem;">{{ p.nombre }}</div>
+                <div class="text-muted" style="font-size: 0.7rem;">{{ p.stock_vendido }} vendido{{ 's' if p.stock_vendido != 1 else '' }} de {{ p.stock }}</div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                {% set pct = ((p.stock_vendido / p.stock) * 100) | int if p.stock > 0 else 0 %}
+                <div style="width: 50px; height: 6px; background: #e9ecef; border-radius: 3px; overflow: hidden;">
+                    <div style="width: {{ pct }}%; height: 100%; background: {{ '#ff3b30' if p.stock_disponible <= 0 else ('#ff9500' if p.stock_disponible <= 5 else '#34c759') }}; border-radius: 3px;"></div>
+                </div>
+                <span class="badge {{ 'bg-danger' if p.stock_disponible <= 0 else ('bg-warning text-dark' if p.stock_disponible <= 5 else 'bg-success') }}" style="border-radius: 6px; font-size: 0.7rem; min-width: 38px;">
+                    {{ p.stock_disponible }}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 {% endif %}
 
 <!-- Integrantes y roles -->

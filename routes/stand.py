@@ -41,6 +41,11 @@ def dashboard(codigo):
         inversion_sesion = 0
 
     ganancia_neta = total_recaudado - inversion_sesion
+
+    productos_con_stock = stand.productos.filter(
+        Producto.stock.isnot(None), Producto.activo == True
+    ).order_by(Producto.nombre).all()
+
     return render_template('stand/dashboard.html', stand=stand,
                            total_ventas=total_ventas,
                            productos_activos=productos_activos,
@@ -48,7 +53,8 @@ def dashboard(codigo):
                            total_recaudado=total_recaudado,
                            ganancia_neta=ganancia_neta,
                            inversion_sesion=inversion_sesion,
-                           sesion_abierta=sesion_abierta)
+                           sesion_abierta=sesion_abierta,
+                           productos_con_stock=productos_con_stock)
 
 
 @stand_bp.route('/<codigo>/editar', methods=['POST'])

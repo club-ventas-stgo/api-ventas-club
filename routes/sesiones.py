@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 from app import db
-from models import SesionVenta, SesionIntegrante, Integrante, Venta, DetalleVenta
+from models import SesionVenta, SesionIntegrante, Integrante, Venta, DetalleVenta, Producto
 from routes.stand import get_stand_or_404
 
 CHILE_TZ = ZoneInfo('America/Santiago')
@@ -146,8 +146,12 @@ def detalle(codigo, sesion_id):
         ventas = sesion.ventas.order_by(Venta.created_at.desc()).all()
         integrantes_disponibles = stand.integrantes.filter_by(activo=True).order_by(Integrante.nombre).all()
         resumen = obtener_resumen_sesion(ventas)
+        productos_con_stock = stand.productos.filter(
+            Producto.stock.isnot(None), Producto.activo == True
+        ).order_by(Producto.nombre).all()
         return render_template('sesiones/detalle.html', stand=stand, sesion=sesion,
                                resumen=resumen, integrantes_disponibles=integrantes_disponibles,
+                               productos_con_stock=productos_con_stock,
                                formato_fecha_sesion=formato_fecha_sesion)
     except HTTPException:
         raise
